@@ -1,0 +1,27 @@
+import app.opia.common.api.model.OwnedFieldType;
+import java.time.ZonedDateTime;
+import java.util.UUID;
+
+-- client-side modifications do not allow incomplete fields
+-- only implemented as insert-time checks because the OwnedField is also used for network response parsing
+CREATE TABLE IF NOT EXISTS owned_field (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID CHECK (actor_id IS NOT NULL), -- client-side check
+  installation_id TEXT AS UUID NOT NULL,
+  type TEXT AS OwnedFieldType NOT NULL,
+  content TEXT NOT NULL,
+  verification_code TEXT NOT NULL,
+  valid INTEGER AS Boolean NOT NULL CHECK (type <> 'phone_no' OR valid = 1), -- client-side check
+  "primary" INTEGER AS Boolean CHECK("primary" IS NOT NULL), -- client-side check
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  deleted_at TEXT AS ZonedDateTime
+);
+
+insert:
+INSERT OR REPLACE INTO owned_field(id, actor_id, installation_id, type, content, verification_code, valid, "primary", created_at, deleted_at) VALUES ?;
+
+listByActor:
+SELECT * FROM owned_field WHERE actor_id = ?;
+
+truncate:
+DELETE FROM owned_field;

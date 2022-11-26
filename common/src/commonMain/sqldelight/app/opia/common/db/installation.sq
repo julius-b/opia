@@ -1,0 +1,42 @@
+import java.util.UUID;
+import java.time.ZonedDateTime;
+import app.opia.common.utils.Platform;
+
+CREATE TABLE IF NOT EXISTS installation (
+  self INTEGER AS Boolean NOT NULL,
+  id TEXT AS UUID PRIMARY KEY NOT NULL, -- TODO BLOB
+  name TEXT NOT NULL,
+  "desc" TEXT NOT NULL,
+  os TEXT AS Platform NOT NULL,
+  client_vname TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS installation_self_idx ON installation (self) WHERE self = TRUE;
+
+listAll:
+SELECT * FROM installation;
+
+getSelf:
+SELECT * FROM installation WHERE self = TRUE LIMIT 1;
+
+insert:
+INSERT OR REPLACE INTO installation (self, id, name, "desc", os, client_vname) VALUES ?;
+-- if VALUES ? produces errors, use VALUES (?, ?) - though try deleting .db first
+-- TODO RETURNING ?
+
+truncate:
+DELETE FROM installation;
+
+
+CREATE TABLE IF NOT EXISTS installation_ownership (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID NOT NULL,
+  installation_id TEXT AS UUID NOT NULL,
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  deleted_at TEXT AS ZonedDateTime -- used by server
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS installation_ownership_actor_id_installation_id_idx ON installation_ownership (actor_id, installation_id) WHERE deleted_at IS NULL;
+
+truncateOwnerships:
+DELETE FROM installation_ownership;

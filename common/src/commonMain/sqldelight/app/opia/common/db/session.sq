@@ -1,0 +1,24 @@
+import java.util.UUID;
+import java.time.ZonedDateTime;
+
+CREATE TABLE IF NOT EXISTS auth_session (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID NOT NULL,
+  installation_id TEXT AS UUID NOT NULL,
+  ioid TEXT AS UUID NOT NULL,
+  secret_update_id TEXT AS UUID NOT NULL,
+  refresh_token text NOT NULL,
+  access_token text NOT NULL,
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  deleted_at TEXT AS ZonedDateTime
+);
+
+insert:
+INSERT OR REPLACE INTO auth_session (id, actor_id, installation_id, ioid, secret_update_id, refresh_token, access_token, created_at) VALUES ?;
+-- (?, ?, ?, ?, ?, ?, ?, ?)
+
+getLatest:
+SELECT * FROM auth_session WHERE created_at = (SELECT max(created_at) FROM auth_session);
+
+truncate:
+DELETE FROM auth_session;

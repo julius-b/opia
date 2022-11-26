@@ -1,13 +1,4 @@
-group "app.opia"
-version "1.0-SNAPSHOT"
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-    }
-}
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("multiplatform") apply false
@@ -15,4 +6,32 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("org.jetbrains.compose") apply false
+}
+
+group = "app.opia"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    repositories {
+        google()
+        gradlePluginPortal()
+        mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven(url = uri("https://jitpack.io"))
+    }
+    dependencies {
+        classpath("com.squareup.sqldelight:gradle-plugin:1.5.4")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    }
+
+    tasks.withType<KotlinCompile>() {
+        kotlinOptions.jvmTarget = "11"
+    }
 }

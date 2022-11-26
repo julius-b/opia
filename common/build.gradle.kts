@@ -1,9 +1,18 @@
 import org.jetbrains.compose.compose
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
 
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.compose")
     id("com.android.library")
+    id("kotlin-parcelize")
+    id("com.squareup.sqldelight")
+}
+
+sqldelight {
+    database("OpiaDatabase") {
+        packageName = "app.opia.db"
+    }
 }
 
 group = "app.opia"
@@ -22,6 +31,36 @@ kotlin {
                 api(compose.runtime)
                 api(compose.foundation)
                 api(compose.material)
+                api(compose.materialIconsExtended)
+                api("androidx.appcompat:appcompat:1.5.1")
+                implementation("androidx.compose.ui:ui:1.3.1")
+                implementation("androidx.compose.ui:ui-text:1.3.1")
+
+                implementation("com.squareup.sqldelight:runtime:1.5.4")
+                implementation("com.squareup.sqldelight:coroutines-extensions:1.5.4")
+
+                implementation("com.squareup.moshi:moshi:1.14.0")
+                implementation("com.squareup.moshi:moshi-kotlin:1.14.0")
+                implementation("com.squareup.moshi:moshi-adapters:1.14.0")
+
+                implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
+                implementation("com.squareup.retrofit2:retrofit:2.9.0")
+                implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+
+                implementation("com.arkivanov.decompose:decompose:1.0.0-alpha-07")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-alpha-07")
+                implementation("com.arkivanov.essenty:parcelable:0.6.0")
+                implementation("com.arkivanov.essenty:lifecycle:0.6.0")
+
+                implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.0")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.0")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.0")
+                implementation("com.arkivanov.mvikotlin:rx:3.0.0") // Disposable
+
+                implementation("com.badoo.reaktive:reaktive:1.2.2")
+                implementation("com.badoo.reaktive:coroutines-interop:1.2.2")
+
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
             }
         }
         val commonTest by getting {
@@ -31,8 +70,11 @@ kotlin {
         }
         val androidMain by getting {
             dependencies {
-                api("androidx.appcompat:appcompat:1.2.0")
-                api("androidx.core:core-ktx:1.3.1")
+                api("androidx.core:core-ktx:1.9.0")
+                implementation("com.squareup.sqldelight:android-driver:1.5.4")
+                implementation("com.squareup.sqldelight:sqlite-driver:1.5.4")
+
+                implementation("com.google.android.material:material:1.7.0")
             }
         }
         val androidTest by getting {
@@ -43,6 +85,10 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 api(compose.preview)
+                implementation("com.squareup.sqldelight:sqlite-driver:1.5.4")
+
+                runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
+                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.0.0") // DefaultStoreFactory
             }
         }
         val desktopTest by getting
@@ -50,14 +96,22 @@ kotlin {
 }
 
 android {
-    compileSdkVersion(31)
+    namespace = "app.opia.android"
+    compileSdk = 33
+    buildToolsVersion = "30.0.3"
+
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
-        minSdkVersion(24)
-        targetSdkVersion(31)
+        minSdk = 24
+        targetSdk = 33
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
+
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    dependencies {
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
     }
 }
