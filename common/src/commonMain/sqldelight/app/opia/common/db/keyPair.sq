@@ -1,0 +1,52 @@
+import app.opia.common.api.repository.KeyAlgo;
+import app.opia.common.api.repository.KeyLifetime;
+import app.opia.common.api.repository.KeyType;
+import java.time.ZonedDateTime;
+import java.util.UUID;
+import kotlin.UByteArray;
+
+CREATE TABLE IF NOT EXISTS key_pair (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID NOT NULL,
+  installation_id TEXT AS UUID NOT NULL,
+  ioid TEXT AS UUID NOT NULL,
+  type TEXT AS KeyType NOT NULL,
+  lifetime TEXT AS KeyLifetime NOT NULL,
+  algo TEXT AS KeyAlgo NOT NULL,
+  pubk BLOB AS UByteArray NOT NULL,
+  pubk_signed BLOB AS UByteArray NOT NULL,
+  signing_key_id TEXT AS UUID,
+  -- seck_enc BLOB NOT NULL,
+  -- vault_key_id TEXT NULL,
+  seck_clr BLOB AS UByteArray NOT NULL,
+  used INTEGER AS Boolean NOT NULL,
+  synced INTEGER AS Boolean NOT NULL, -- ignored for ident & skex
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  deleted_at TEXT AS ZonedDateTime
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS key_pair_ioid_type_algo_on_static_unique_idx ON key_pair(ioid, type, algo) WHERE lifetime = 'static' AND deleted_at IS NULL;
+
+insert:
+INSERT OR REPLACE INTO key_pair (id, actor_id, installation_id, ioid, type, lifetime, algo, pubk, pubk_signed, signing_key_id, seck_clr, used, synced, created_at, deleted_at) VALUES ?;
+
+getIdentKey:
+SELECT * FROM key_pair WHERE type = 'signature' AND lifetime = 'static' AND algo = 'ed25519' AND ioid = ? AND deleted_at IS NULL LIMIT 1;
+
+getSKexKey:
+SELECT * FROM key_pair WHERE type = 'kex' AND lifetime = 'static' AND algo = 'x25519' AND ioid = ? AND deleted_at IS NULL LIMIT 1;
+
+delete:
+DELETE FROM key_pair WHERE id = ?;
+
+getEKexKey:
+SELECT * FROM key_pair WHERE type = 'kex' AND lifetime = 'ephemeral' AND algo = 'x25519' AND id = ? AND deleted_at IS NULL LIMIT 1;
+
+getUnsyncedEKexKeys:
+SELECT * FROM key_pair WHERE type = 'kex' AND lifetime = 'ephemeral' AND synced = 0 AND ioid = ? AND deleted_at IS NULL;
+
+updateSynced:
+UPDATE key_pair SET synced = ? WHERE id = ?;
+
+truncate:
+DELETE FROM key_pair;

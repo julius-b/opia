@@ -4,6 +4,7 @@ import app.opia.common.api.HintedApiSuccess
 import app.opia.common.api.PlainApiSuccess
 import app.opia.common.api.model.*
 import app.opia.common.db.Actor
+import app.opia.common.db.Actor_link
 import app.opia.common.db.Auth_session
 import app.opia.common.db.Owned_field
 import retrofit2.http.*
@@ -11,7 +12,7 @@ import java.util.*
 
 interface ActorApi {
     @POST("actor/owned")
-    suspend fun postOwned(
+    suspend fun createOwned(
         @Header(InstallationId) installationId: UUID, @Body params: CreateOwnedFieldParams
     ): PlainApiSuccess<Owned_field>
 
@@ -21,27 +22,36 @@ interface ActorApi {
     ): PlainApiSuccess<Owned_field>
 
     @GET("actor")
-    suspend fun list(@Header(Authorization) authorization: String): PlainApiSuccess<List<Actor>>
+    suspend fun list(): PlainApiSuccess<List<Actor>>
 
     @GET("actor/{id}")
-    suspend fun get(
+    suspend fun getUnauthenticated(
         @Header(Authorization) authorization: String, @Path("id") id: UUID
     ): PlainApiSuccess<Actor>
 
+    // (possibly) not yet authenticated
+    @GET("actor/{id}")
+    suspend fun get(@Path("id") id: UUID): PlainApiSuccess<Actor>
+
     @POST("actor")
-    suspend fun post(
+    suspend fun create(
         @Header(InstallationId) installationId: UUID,
         @Header(ChallengeResponse) challengeResponses: List<String>,
         @Body params: CreateActorParams
     ): HintedApiSuccess<Actor, AuthHints>
 
     @GET("actor/by-handle/{handle}")
-    suspend fun getByHandle(
-        @Header(Authorization) authorization: String, @Path("handle") handle: String
-    ): PlainApiSuccess<Actor>
+    suspend fun getByHandle(@Path("handle") handle: String): PlainApiSuccess<Actor>
 
     @POST("auth_session")
-    suspend fun postAuthSession(
+    suspend fun createAuthSession(
         @Header(InstallationId) installationId: UUID, @Body params: CreateAuthSessionParams
     ): HintedApiSuccess<Auth_session, AuthHints>
+
+    // don't use Auth header since server doesn't like invalid tokens
+    @POST("auth_session/refresh")
+    suspend fun refreshAuthSession(@Header(RefreshToken) authorization: String): PlainApiSuccess<Auth_session>
+
+    @GET("actor/link")
+    suspend fun listLinks(): PlainApiSuccess<List<Actor_link>>
 }

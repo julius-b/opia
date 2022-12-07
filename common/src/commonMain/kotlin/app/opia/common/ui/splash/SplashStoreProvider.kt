@@ -1,5 +1,6 @@
 package app.opia.common.ui.splash
 
+import app.opia.common.api.model.ApiUpdatedReceipt
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.splash.SplashStore.Label
 import app.opia.common.ui.splash.SplashStore.State
@@ -8,8 +9,15 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import com.squareup.sqldelight.runtime.coroutines.asFlow
+import com.squareup.sqldelight.runtime.coroutines.mapToOne
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mainDispatcher
+import java.time.ZonedDateTime
+import java.util.*
 
 internal class SplashStoreProvider(
     private val storeFactory: StoreFactory, private val di: ServiceLocator
@@ -33,15 +41,14 @@ internal class SplashStoreProvider(
 
     private inner class ExecutorImpl :
         CoroutineExecutor<Nothing, Action, State, Msg, Label>(mainDispatcher()) {
-        override fun executeAction(action: Action, getState: () -> State) {
-            println("Splash > action: $action")
-            when (action) {
-                is Action.Start -> loadStateFromDb()
-            }
+        override fun executeAction(action: Action, getState: () -> State) = when (action) {
+            is Action.Start -> loadStateFromDb()
         }
 
         private fun loadStateFromDb() {
             scope.launch {
+                withContext(Dispatchers.IO) { ch.oxc.nikea.initCrypto() }
+
                 val sess = di.actorRepo.getLatestAuthSession()
 
                 // events published during executeAction are not received by consumers because
@@ -50,18 +57,22 @@ internal class SplashStoreProvider(
                 // - sending a Msg from UI LaunchedEffect _after_ collecting
                 // - publish update as state, therefore new received will receive the correct value as well
                 if (sess != null) {
-                    publish(Label.Main)
-                    dispatch(Msg.Next(OpiaSplash.Next.MAIN))
+                    val self =
+                        di.database.actorQueries.getById(sess.actor_id).asFlow().mapToOne().first()
+                    publish(Label.Main(self.id))
+                    dispatch(Msg.Next(OpiaSplash.Next.Main(self.id)))
                 } else {
+                    // clear db
+                    di.actorRepo.logout()
                     publish(Label.Auth)
-                    dispatch(Msg.Next(OpiaSplash.Next.AUTH))
+                    dispatch(Msg.Next(OpiaSplash.Next.Auth))
                 }
             }
         }
     }
 
     private object ReducerImpl : Reducer<State, Msg> {
-        override fun State.reduce(msg: Msg): State = when (msg) {
+        override fun State.reduce(msg: Msg) = when (msg) {
             is Msg.Next -> copy(next = msg.next)
         }
     }

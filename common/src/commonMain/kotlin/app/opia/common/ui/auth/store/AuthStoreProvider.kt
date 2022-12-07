@@ -9,16 +9,17 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import com.squareup.sqldelight.runtime.coroutines.asFlow
+import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mainDispatcher
 
 internal class AuthStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val di: ServiceLocator
+    private val storeFactory: StoreFactory, private val di: ServiceLocator
 ) {
-
     fun provide(): AuthStore =
         object : AuthStore, Store<Intent, State, Label> by storeFactory.create(
             name = "AuthStore",
@@ -37,7 +38,8 @@ internal class AuthStoreProvider(
         data class SecretError(val error: String) : Msg()
     }
 
-    private inner class ExecutorImpl : CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
+    private inner class ExecutorImpl :
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
         override fun executeAction(action: Unit, getState: () -> State) {}
 
         override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {
@@ -52,7 +54,8 @@ internal class AuthStoreProvider(
 
             scope.launch {
                 // withContext: fix stuttering
-                val installation = withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
+                val installation =
+                    withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
                 println("[*] login > installation: $installation")
                 if (installation == null) {
                     publish(Label.NetworkError)
@@ -60,9 +63,15 @@ internal class AuthStoreProvider(
                 }
 
                 // save session & actor
-                val authRes = withContext(Dispatchers.IO) { di.actorRepo.login(state.unique, state.secret) }
+                val authRes =
+                    withContext(Dispatchers.IO) { di.actorRepo.login(state.unique, state.secret) }
                 when (authRes) {
-                    is NetworkResponse.ApiSuccess -> publish(Label.Authenticated)
+                    is NetworkResponse.ApiSuccess -> {
+                        val actorId = authRes.body.data.actor_id
+                        val self =
+                            di.database.actorQueries.getById(actorId).asFlow().mapToOne().first()
+                        publish(Label.Authenticated(self.id))
+                    }
                     is NetworkResponse.ApiError -> {
                         if (authRes.body.errors == null) {
                             println("[!] login > error response has no errors")
@@ -118,7 +127,7 @@ internal class AuthStoreProvider(
     }
 
     private object ReducerImpl : Reducer<State, Msg> {
-        override fun State.reduce(msg: Msg): State = when (msg) {
+        override fun State.reduce(msg: Msg) = when (msg) {
             is Msg.LoadingChanged -> copy(isLoading = msg.loading)
             is Msg.GeneralErrorChanged -> copy(generalError = msg.error)
             is Msg.UniqueChanged -> copy(unique = msg.unique, uniqueError = null)

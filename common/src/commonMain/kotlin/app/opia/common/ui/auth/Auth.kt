@@ -1,8 +1,10 @@
 package app.opia.common.ui.auth
 
+import app.opia.common.db.Actor
 import app.opia.common.ui.auth.store.IdentityProvider
 import com.arkivanov.decompose.value.Value
 import kotlinx.coroutines.flow.Flow
+import java.util.*
 
 interface OpiaAuth {
 
@@ -21,7 +23,7 @@ interface OpiaAuth {
 
     fun onContinueWithProviderClicked(provider: IdentityProvider)
 
-    fun onAuthenticated()
+    fun onAuthenticated(selfId: UUID)
 
     data class Model(
         val isLoading: Boolean,
@@ -33,13 +35,13 @@ interface OpiaAuth {
     )
 
     sealed class Event {
-        object Authenticated : Event()
+        data class Authenticated(val selfId: UUID) : Event()
         object NetworkError : Event()
         object UnknownError : Event()
     }
 
     sealed class Output {
-        object Authenticated : Output()
+        data class Authenticated(val selfId: UUID) : Output()
         data class ContinueWithProvider(val provider: IdentityProvider) : Output()
         object Register : Output()
     }

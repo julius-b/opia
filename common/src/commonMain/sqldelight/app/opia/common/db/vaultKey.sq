@@ -1,0 +1,26 @@
+import java.util.UUID;
+import java.time.ZonedDateTime;
+import kotlin.UByteArray;
+
+CREATE TABLE IF NOT EXISTS vault_key (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID NOT NULL,
+  algo TEXT NOT NULL,
+  prevk_id TEXT AS UUID,
+  prevk_bckp BLOB AS UByteArray NOT NULL,
+  seck_enc BLOB AS UByteArray NOT NULL,
+  args TEXT NOT NULL,
+  seck_clr BLOB AS UByteArray NOT NULL,
+  secret_update_id TEXT AS UUID NOT NULL,
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  deleted_at TEXT AS ZonedDateTime
+);
+
+insert:
+INSERT OR REPLACE INTO vault_key (id, actor_id, algo, prevk_id, prevk_bckp, seck_enc, args, seck_clr, secret_update_id, created_at, deleted_at) VALUES ?;
+
+get:
+SELECT * FROM vault_key WHERE actor_id = ? AND algo = 'XChaCha20Poly1305' AND secret_update_id = ? AND deleted_at IS NULL LIMIT 1;
+
+truncate:
+DELETE FROM vault_key;

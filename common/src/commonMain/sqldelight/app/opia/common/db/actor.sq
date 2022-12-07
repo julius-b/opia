@@ -1,5 +1,5 @@
-import java.util.UUID;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 CREATE TABLE IF NOT EXISTS actor (
   id TEXT AS UUID PRIMARY KEY NOT NULL,
@@ -15,14 +15,48 @@ CREATE TABLE IF NOT EXISTS actor (
   deleted_at TEXT AS ZonedDateTime
 );
 
+-- lower
+CREATE UNIQUE INDEX IF NOT EXISTS actor_handle_unique_lower_idx ON actor (handle) WHERE deleted_at IS NULL;
+
 insert:
 INSERT OR REPLACE INTO actor(id, type, auth, handle, name, desc, profile_id, banner_id, created_at, deleted_at) VALUES ?;
 
 listAll:
-SELECT * FROM actor;
+SELECT * FROM actor WHERE deleted_at IS NULL;
 
 getById:
-SELECT * FROM actor WHERE id = ?;
+SELECT * FROM actor WHERE id = ? AND deleted_at IS NULL;
+
+getByHandle:
+SELECT * FROM actor WHERE handle = ? AND deleted_at IS NULL;
 
 truncate:
 DELETE FROM actor;
+
+CREATE TABLE IF NOT EXISTS actor_link (
+  actor_id TEXT AS UUID NOT NULL,
+  peer_id TEXT AS UUID NOT NULL,
+  perm INTEGER NOT NULL,
+  created_at TEXT AS ZonedDateTime NOT NULL,
+  created_by TEXT AS UUID,
+  unlinked_at TEXT AS ZonedDateTime,
+  unlinked_by TEXT AS UUID,
+  deleted_at TEXT AS ZonedDateTime
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS actor_link_actor_id_peer_id_unique_idx ON actor_link (actor_id, peer_id) WHERE deleted_at IS NULL;
+
+insertLink:
+INSERT OR REPLACE INTO actor_link (actor_id, peer_id, perm, created_at, created_by, unlinked_at, unlinked_by, deleted_at) VALUES ?;
+
+insertLinkSoft:
+INSERT OR IGNORE INTO actor_link (actor_id, peer_id, perm, created_at, created_by, unlinked_at, unlinked_by, deleted_at) VALUES ?;
+
+getLink:
+SELECT * FROM actor_link WHERE actor_id = ? AND peer_id = ?;
+
+listLinksForActor:
+SELECT * FROM actor_link WHERE actor_id = :actor_id OR peer_id = :actor_id;
+
+truncateLinks:
+DELETE FROM actor_link;

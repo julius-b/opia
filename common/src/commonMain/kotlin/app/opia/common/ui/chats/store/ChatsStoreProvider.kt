@@ -1,7 +1,10 @@
 package app.opia.common.ui.chats.store
 
+import app.opia.common.api.repository.LinkPerm
 import app.opia.common.db.Actor
+import app.opia.common.db.Actor_link
 import app.opia.common.di.ServiceLocator
+import app.opia.common.sync.ChatSync
 import app.opia.common.ui.chats.ChatsItem
 import app.opia.common.ui.chats.store.ChatsStore.*
 import com.arkivanov.mvikotlin.core.store.Reducer
@@ -12,21 +15,19 @@ import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
 import com.squareup.sqldelight.runtime.coroutines.mapToOne
+import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import mainDispatcher
+import java.time.ZonedDateTime
 import java.util.*
+import kotlin.system.exitProcess
 
-private fun Actor.toItem(): ChatsItem = ChatsItem(
-    id = id,
-    name = name,
-    text = handle, // TODO latest msg
-)
-
-internal class ChatsStoreProvider (
-    private val storeFactory: StoreFactory,
-    private val di: ServiceLocator
+internal class ChatsStoreProvider(
+    private val storeFactory: StoreFactory, private val selfId: UUID, private val di: ServiceLocator
 ) {
+    private val db = di.database
+
     fun provide(): ChatsStore =
         object : ChatsStore, Store<Intent, State, Label> by storeFactory.create(
             name = "OpiaChatsStore",
@@ -37,34 +38,105 @@ internal class ChatsStoreProvider (
         ) {}
 
     private sealed class Msg {
-        data class ItemsLoaded(val items: List<ChatsItem>) : Msg()
-        data class ItemDeleted(val id: UUID) : Msg()
+        data class SelfUpdated(val self: Actor) : Msg()
+        data class ChatsLoaded(val chats: List<ChatsItem>) : Msg()
+        data class ChatDeleted(val id: UUID) : Msg()
+        data class SearchQueryChanged(val query: String) : Msg()
+        data class SearchErrorChanged(val error: String) : Msg()
     }
 
-    private inner class ExecutorImpl : CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
+    private inner class ExecutorImpl :
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
         override fun executeAction(action: Unit, getState: () -> State) {
-            scope.launch {
-                di.database.actorQueries.listAll().asFlow().mapToList().collect {
-                    dispatch(Msg.ItemsLoaded(it.map { it.toItem() }))
+            GlobalScope.launch(Dispatchers.Default + CoroutineExceptionHandler { _, throwable ->
+                println("[!] ChatSync > t: $throwable")
+                println("[!] ChatSync > t: ${throwable.message}")
+                throwable.printStackTrace()
+                exitProcess(-1)
+            }) {
+                val id = UUID.randomUUID()
+                val chatSync = withContext(Dispatchers.IO) { ChatSync.init(di) }
+                while (true) {
+                    println("[*] ChatSync [$id] > syncing...")
+                    // check if logout occurred...
+                    val aS = db.sessionQueries.getLatest().asFlow().mapToOneOrNull().first()
+                    if (aS == null) {
+                        println("[!] Sync > logged out, exiting...")
+                        break
+                    }
+
+                    withContext(Dispatchers.IO) { chatSync.sync() }
+                    delay(5000L)
                 }
             }
+
             scope.launch {
-                println("querying user info...")
-                val authSession = di.database.sessionQueries.getLatest().asFlow().mapToOne().first()
-                println("authSession: $authSession")
-                val actor = di.database.actorQueries.getById(authSession.actor_id).asFlow().mapToOne().first()
-                println("actor: $actor")
-                val ownedFields = di.database.owned_fieldQueries.listByActor(actor.id).asFlow().mapToList().first()
-                println("ownedFields: $ownedFields")
+                println("[*] ChatsStore > querying user info...")
+                val authSession = withContext(Dispatchers.IO) {
+                    db.sessionQueries.getLatest().asFlow().mapToOne().first()
+                }
+                println("[*] ChatsStore > authSession: $authSession")
+                val self = withContext(Dispatchers.IO) {
+                    db.actorQueries.getById(authSession.actor_id).asFlow().mapToOne().first()
+                }
+                println("[*] ChatsStore > actor: $self")
+                dispatch(Msg.SelfUpdated(self))
+                val ownedFields = withContext(Dispatchers.IO) {
+                    db.ownedFieldQueries.listByActor(self.id).asFlow().mapToList().first()
+                }
+                println("[*] ChatsStore > ownedFields: $ownedFields")
+
+                di.actorRepo.listLinks()
+
+                // refresh when db refreshes - maybe listLinks should return a Flow
+                db.actorQueries.listLinksForActor(self.id).asFlow().mapToList().collect {
+                    val chats = it.map { link ->
+                        // TODO get latest msg per chat
+                        // actor should exist in db, only time this returns null is if unauthenticated
+                        val peer = di.actorRepo.getActor(link.peer_id)
+                        if (peer == null) {
+                            println("[!] ChatsStore > logging out...")
+                            logout()
+                            return@collect
+                        }
+                        ChatsItem(link.peer_id, peer.name, "@${peer.handle} / ${peer.desc}")
+                    }
+                    dispatch(Msg.ChatsLoaded(chats))
+                }
             }
         }
 
-        override fun executeIntent(intent: Intent, getState: () -> State): Unit =
-            when (intent) {
-                is Intent.Logout -> logout()
-                is Intent.DeleteItem -> deleteItem(intent.id)
-                //is Intent.AddItem -> addItem(getState())
+        override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {
+            is Intent.Logout -> logout()
+            is Intent.SetSearchQuery -> dispatch(Msg.SearchQueryChanged(intent.query))
+            is Intent.Search -> search(getState())
+            is Intent.OpenChat -> openChat(intent.id)
+            is Intent.DeleteItem -> deleteItem(intent.id)
+        }
+
+        private fun search(state: State) {
+            scope.launch {
+                val peer = di.actorRepo.getActorByHandle(state.searchQuery)
+                if (peer == null) {
+                    dispatch(Msg.SearchErrorChanged("User not found :["))
+                    return@launch
+                }
+                db.actorQueries.insertLink(
+                    Actor_link(
+                        selfId,
+                        peer.id,
+                        LinkPerm.isAdmin.ordinal.toLong(),
+                        ZonedDateTime.now(),
+                        selfId,
+                        null,
+                        null,
+                        null
+                    )
+                )
+                dispatch(Msg.SearchQueryChanged(""))
+                publish(Label.SearchFinished)
             }
+        }
 
         private fun logout() {
             scope.launch {
@@ -73,40 +145,28 @@ internal class ChatsStoreProvider (
             }
         }
 
-        private fun deleteItem(id: UUID) {
-            dispatch(Msg.ItemDeleted(id = id))
-            //database.delete(id = id).subscribeScoped()
+        private fun openChat(id: UUID) {
+            scope.launch {
+                val peer = withContext(Dispatchers.IO) {
+                    db.actorQueries.getById(id).asFlow().mapToOne().first()
+                }
+                publish(Label.ChatOpened(selfId, peer.id))
+            }
         }
 
-        private fun addItem(state: State) {
-            if (state.text.isNotEmpty()) {
-                //dispatch(Msg.TextChanged(text = ""))
-                //database.add(text = state.text).subscribeScoped()
-            }
+        private fun deleteItem(id: UUID) {
+            dispatch(Msg.ChatDeleted(id))
+            //database.delete(id = id).subscribeScoped()
         }
     }
 
     private object ReducerImpl : Reducer<State, Msg> {
-        override fun State.reduce(msg: Msg): State =
-            when (msg) {
-                is Msg.ItemsLoaded -> copy(items = msg.items) //copy(items = msg.items.sorted())
-                is Msg.ItemDeleted -> copy(items = items.filterNot { it.id == msg.id })
-            }
-
-        private inline fun State.update(id: UUID, func: ChatsItem.() -> ChatsItem): ChatsStore.State {
-            val item = items.find { it.id == id } ?: return this
-
-            return put(item.func())
+        override fun State.reduce(msg: Msg) = when (msg) {
+            is Msg.SelfUpdated -> copy(self = msg.self)
+            is Msg.ChatsLoaded -> copy(chats = msg.chats) //copy(items = msg.items.sorted())
+            is Msg.ChatDeleted -> copy(chats = chats.filterNot { it.id == msg.id })
+            is Msg.SearchQueryChanged -> copy(searchQuery = msg.query, searchError = null)
+            is Msg.SearchErrorChanged -> copy(searchError = msg.error)
         }
-
-        private fun State.put(item: ChatsItem): State {
-            val oldItems = items.associateByTo(mutableMapOf(), ChatsItem::id)
-            val oldItem: ChatsItem? = oldItems.put(item.id, item)
-
-            return copy(items = oldItems.values.toList())
-            //return copy(items = if (oldItem?.order == item.order) oldItems.values.toList() else oldItems.values.sorted())
-        }
-
-        //private fun Iterable<ChatsItem>.sorted(): List<ChatsItem> = sortedByDescending(ChatsItem::order)
     }
 }

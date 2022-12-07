@@ -1,9 +1,20 @@
 package app.opia.common.api.model
 
 import app.opia.common.db.Owned_field
-import java.util.UUID
+import java.util.*
 
-enum class OwnedFieldType{
+//@JsonClass(generateAdapter = true)
+data class AccessToken(
+    val exp: Long,
+    val sub: UUID,
+    val handle: String,
+    val auth: Int,
+    val iid: UUID,
+    val ioid: UUID,
+    val cap_chat: Boolean
+)
+
+enum class OwnedFieldType {
     email, phone_no
 }
 
@@ -29,8 +40,4 @@ data class CreateActorParams(
 
 data class CreateAuthSessionParams(
     val unique: String, val secret: String, val cap_chat: Boolean, val ioid: UUID?
-)
-
-data class CreateActorMembershipParams(
-    val member_of_id: UUID, val is_admin: Boolean
 )

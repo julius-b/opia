@@ -49,7 +49,7 @@ fun AuthContent(component: OpiaAuth) {
             component.events.collect {
                 when (it) {
                     is Event.Authenticated -> {
-                        component.onAuthenticated()
+                        component.onAuthenticated(it.selfId)
                     }
                     is Event.NetworkError -> {
                         // TODO collectLatest's cancel on new (passing `this` does not help)

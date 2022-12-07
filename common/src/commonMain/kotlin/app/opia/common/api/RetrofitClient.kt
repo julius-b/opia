@@ -3,10 +3,11 @@
 package app.opia.common.api
 
 import app.opia.common.api.endpoint.*
+import app.opia.common.api.model.AccessToken
+import app.opia.common.di.ServiceLocator
 import com.squareup.moshi.FromJson
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.ToJson
-import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -16,8 +17,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Base64
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
@@ -28,20 +28,20 @@ object RetrofitClient {
 
     enum class Mode(val config: RunConfig) {
         LocalDebug(RunConfig(host = "http://localhost:8080/api/v1/")),
-        NetworkDebug(RunConfig(host = "http://192.168.43.55:8080/api/v1/")),
+        NetworkDebug(RunConfig(host = "http://192.168.1.25:8080/api/v1/")),
         StagingDebug(RunConfig(host = "https://staging.opia.app/api/v1/")),
         Prod(RunConfig(host = "https://opia.app/api/v1/"));
     }
 
-    private val mode: Mode = Mode.NetworkDebug
+    private val mode: Mode = Mode.LocalDebug
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)
     }
 
-    private val okHttpClient: OkHttpClient =
+    fun newOkHttpClient(di: ServiceLocator) =
         OkHttpClient().newBuilder().addInterceptor(RequestInterceptor)
-            //.addInterceptor(AuthorizationInterceptor)
+            .addInterceptor(AuthInterceptor(di))
             .addInterceptor(loggingInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS).build()
@@ -51,7 +51,7 @@ object RetrofitClient {
         .add(object : Any() {
             @ToJson
             fun toJson(dt: ZonedDateTime?): String? {
-                return dt?.format(DateTimeFormatter.ISO_DATE_TIME)
+                return dt?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
             }
 
             @FromJson
@@ -95,28 +95,21 @@ object RetrofitClient {
         //.add(Date::class.java, Rfc3339DateJsonAdapter())
         .build()
 
-    private val retrofitClient by lazy {
+    val accessTokenAdapter = moshi.adapter(AccessToken::class.java)
+
+    fun newRetrofitClient(okHttpClient: OkHttpClient) =
         Retrofit.Builder().client(okHttpClient).baseUrl(mode.config.host)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .addCallAdapterFactory(NetworkResponseAdapterFactory())
             .build()
-    }
 
-    val installationService: InstallationApi by lazy {
-        retrofitClient.create(InstallationApi::class.java)
-    }
-    val actorService: ActorApi by lazy {
-        retrofitClient.create(ActorApi::class.java)
-    }
-}
+    fun newInstallationService(retrofit: Retrofit) = retrofit.create(InstallationApi::class.java)
 
-// TODO read from db
-object AuthorizationInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val requestWithHeader =
-            chain.request().newBuilder().header("Authorization", UUID.randomUUID().toString()).build()
-        return chain.proceed(requestWithHeader)
-    }
+    fun newActorService(retrofit: Retrofit) = retrofit.create(ActorApi::class.java)
+
+    fun newKeyService(retrofit: Retrofit) = retrofit.create(KeyApi::class.java)
+
+    fun newMessagingService(retrofit: Retrofit) = retrofit.create(MessagingApi::class.java)
 }
 
 object RequestInterceptor : Interceptor {

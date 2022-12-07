@@ -60,7 +60,7 @@ fun RegistrationContent(component: OpiaRegistration) {
                     component.onAuthenticate()
                 }
                 is Event.Authenticated -> {
-                    component.onAuthenticated()
+                    component.onAuthenticated(it.selfId)
                 }
                 is Event.NetworkError -> {
                     // TODO cancel on new (passing `this` does not help)
@@ -185,7 +185,7 @@ fun StepOne(component: OpiaRegistration, model: Model) {
         if (showDatePickerView) {
             DatePickerView {
                 showDatePickerView = false
-                println("date: $it -- ${it?.dayOfMonth}/${it?.monthValue}/${it?.year}")
+                println("[*] Registration > date: $it -- ${it?.dayOfMonth}/${it?.monthValue}/${it?.year}")
                 it?.let {
                     component.onDOBChanged(it)
                 }
@@ -283,7 +283,7 @@ fun StepTwo(component: OpiaRegistration, model: Model) {
             label = { Text("E-mail") },
             isError = model.emailError != null,
             keyboardOptions = KeyboardOptions(
-                autoCorrect = false, imeAction = ImeAction.Next
+                autoCorrect = false, keyboardType = KeyboardType.Email, imeAction = ImeAction.Next
             ),
             singleLine = true,
             maxLines = 1
@@ -308,7 +308,7 @@ fun StepTwo(component: OpiaRegistration, model: Model) {
             label = { Text("Phone number") },
             isError = model.phoneNoError != null,
             keyboardOptions = KeyboardOptions(
-                autoCorrect = false, imeAction = ImeAction.Next
+                autoCorrect = false, keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next
             ),
             singleLine = true,
             maxLines = 1

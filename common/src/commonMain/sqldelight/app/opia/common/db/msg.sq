@@ -1,0 +1,112 @@
+import java.util.UUID;
+import java.time.ZonedDateTime;
+
+-- updated_at
+CREATE TABLE IF NOT EXISTS msg (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  from_id TEXT AS UUID NOT NULL,
+  rcpt_id TEXT AS UUID NOT NULL,
+  created_at TEXT AS ZonedDateTime NOT NULL CHECK(created_at <> ''),
+  deleted_at TEXT AS ZonedDateTime
+);
+
+insert:
+INSERT OR REPLACE INTO msg (id, from_id, rcpt_id, created_at, deleted_at) VALUES ?;
+
+truncate:
+DELETE FROM msg;
+
+
+-- one payload per msg (include update_num)
+CREATE TABLE IF NOT EXISTS msg_payload (
+  msg_id TEXT AS UUID PRIMARY KEY NOT NULL,
+  payload TEXT NOT NULL
+);
+
+insertPayload:
+INSERT OR REPLACE INTO msg_payload (msg_id, payload) VALUES ?;
+
+getById:
+SELECT * FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id AND id = ?;
+
+truncatePayloads:
+DELETE FROM msg_payload;
+
+
+-- recv_at nullable for all unreceived messages
+CREATE TABLE IF NOT EXISTS msg_rcpt (
+  msg_id TEXT AS UUID NOT NULL,
+  rcpt_ioid TEXT AS UUID NOT NULL,
+  dup INTEGER NOT NULL,
+  hs_id TEXT AS UUID, -- set if rjct
+  recv_at TEXT AS ZonedDateTime,
+  rjct_at TEXT AS ZonedDateTime CHECK (rjct_at IS NULL OR (recv_at IS NULL AND read_at IS NULL)),
+  read_at TEXT AS ZonedDateTime
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS msg_rcpt_msg_id_rcpt_ioid_dup_unique_idx ON msg_rcpt (msg_id, rcpt_ioid, dup);
+
+truncateReceipts:
+DELETE FROM msg_rcpt;
+
+getReceipt:
+SELECT * FROM msg_rcpt WHERE msg_id = ? AND rcpt_ioid = ? AND dup = ?;
+
+upsertReceipt:
+INSERT OR REPLACE INTO msg_rcpt (msg_id, rcpt_ioid, dup, hs_id, recv_at, rjct_at, read_at) VALUES ?;
+
+-- messages from self (any device? would never occur, but maybe if msgs were kept after ioid change) where no receipt _exists_
+-- considers a rejected message as synced (rejections need to be handled differently than normal uploads)
+-- does not consider that some recipients may have been left out due to expired keys, that information should be queried from server
+listUnsynced:
+SELECT * FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id AND msg.from_id = ? AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_rcpt.msg_id = msg.id LIMIT 1);
+
+-- outstanding receipts per message and per recipient
+-- list messages sent from this user where
+-- effectively a `GROUP BY msg_id, rcpt_ioid` but the grouping filter is the max(dup) per msg_id/rcpt_ioid
+-- an empty receipt exists for all intented targets. they're complete when
+-- IN -> =
+-- ignore self
+-- only if both recv_at AND rjct_at are null do we need to re-query (regarding retransmission)
+-- TODO regarding the read_at, we need to query until it's set - but that's a different issue
+-- NOTE this only handles messages for which a receive exists, ie. not those of other devices from the same user
+listOutstandingReceipts:
+SELECT * FROM msg_rcpt AS outer WHERE rcpt_ioid <> ? AND dup = (SELECT max(inner.dup) FROM msg_rcpt AS inner WHERE outer.msg_id = inner.msg_id AND outer.rcpt_ioid = inner.rcpt_ioid)
+ AND (recv_at IS NULL AND rjct_at IS NULL);
+
+-- rejections where no newer rcpt exists _for that recipient_
+-- NOTE that the db also stores rejections to be sent to other devices, which are not relevant here
+-- packets sent by this device
+-- TODO * produces NumberFormatException
+listRejected:
+SELECT msg_id, rcpt_ioid, dup, hs_id FROM msg_rcpt WHERE rjct_at IS NOT NULL AND
+EXISTS (SELECT 1 FROM msg WHERE msg.id = msg_rcpt.msg_id AND msg.from_id = ?) AND
+NOT EXISTS (SELECT 1 FROM msg_rcpt AS inner WHERE inner.msg_id = msg_rcpt.msg_id AND inner.rcpt_ioid = msg_rcpt.rcpt_ioid AND inner.dup > msg_rcpt.dup);
+
+-- TODO * produces NumberFormatException
+listAll:
+SELECT msg.id, msg.from_id, msg.rcpt_id, msg.created_at, msg_payload.payload FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id
+AND (
+  msg.rcpt_id = :peer_id OR -- sent to this peer (ie. from us) or group (from anyone)
+  (msg.from_id = :peer_id AND msg.rcpt_id = :self_id) -- sent from this peer to us in dm (nothing for collective)
+);
+
+-- every updated_at has to be handled individually to ensure that no lost updated are inserted bewtween reading, uploading & deleting
+CREATE TABLE IF NOT EXISTS rcpt_sync_status (
+  msg_id TEXT AS UUID NOT NULL,
+  rcpt_ioid TEXT AS UUID NOT NULL,
+  dup INTEGER NOT NULL,
+  updated_at TEXT AS ZonedDateTime NOT NULL
+);
+
+truncateReceiptSyncStatus:
+DELETE FROM rcpt_sync_status;
+
+upsertReceiptSyncStatus:
+INSERT OR REPLACE INTO rcpt_sync_status (msg_id, rcpt_ioid, dup, updated_at) VALUES (?, ?, ?, ?);
+
+listUnsyncedReceipts:
+SELECT * FROM rcpt_sync_status;
+
+deleteReceiptSyncStatus:
+DELETE FROM rcpt_sync_status WHERE msg_id = ? AND rcpt_ioid = ? AND dup = ? AND updated_at = ?;

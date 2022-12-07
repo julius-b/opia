@@ -29,6 +29,10 @@ typealias PlainApiSuccess<T> = NetworkResponse<ApiResponse.ApiSuccess<T, Any>>
 
 typealias HintedApiSuccess<T, S> = NetworkResponse<ApiResponse.ApiSuccess<T, S>>
 
+typealias Errors = Map<String, Array<Status>>
+
+fun Errors?.hasErr(key: String, code: Code) = this?.get(key)?.any { it.code == code } == true
+
 sealed interface ApiResponse<out T : Any, out S : Any> {
     val code: String
     //val hints: S
@@ -43,7 +47,7 @@ sealed interface ApiResponse<out T : Any, out S : Any> {
     // TODO add support for generic errorBodyConverter with `hints: S`
     data class ApiError(
         override val code: String,
-        val errors: Map<String, Array<Status>>?,
+        val errors: Errors?,
         val hints: Map<String, Any>?
     ) : ApiResponse<Nothing, Nothing>
 }

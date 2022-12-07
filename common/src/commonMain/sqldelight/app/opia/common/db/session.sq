@@ -18,7 +18,11 @@ INSERT OR REPLACE INTO auth_session (id, actor_id, installation_id, ioid, secret
 -- (?, ?, ?, ?, ?, ?, ?, ?)
 
 getLatest:
-SELECT * FROM auth_session WHERE created_at = (SELECT max(created_at) FROM auth_session);
+SELECT * FROM auth_session WHERE created_at = (SELECT max(created_at) FROM auth_session) AND deleted_at IS NULL;
 
 truncate:
 DELETE FROM auth_session;
+
+-- since deleted_at is just TEXT, better to generate this in code
+deleteAll:
+UPDATE auth_session SET deleted_at = ?;

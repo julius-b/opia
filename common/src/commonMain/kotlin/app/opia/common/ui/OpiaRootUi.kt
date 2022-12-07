@@ -6,6 +6,7 @@ import app.opia.common.ui.OpiaRoot.Child
 import app.opia.common.ui.auth.AuthContent
 import app.opia.common.ui.auth.registration.RegistrationContent
 import app.opia.common.ui.chats.ChatsContent
+import app.opia.common.ui.chats.chat.ChatContent
 import app.opia.common.ui.splash.SplashContent
 import com.arkivanov.decompose.extensions.compose.jetbrains.stack.Children
 import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.fade
@@ -25,6 +26,7 @@ fun OpiaRootContent(component: OpiaRoot) {
             is Child.Auth -> AuthContent(child.component)
             is Child.Registration -> RegistrationContent(child.component)
             is Child.Chats -> ChatsContent(child.component)
+            is Child.Chat -> ChatContent(child.component)
         }
     }
 }

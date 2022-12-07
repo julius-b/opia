@@ -1,6 +1,3 @@
-import org.jetbrains.compose.compose
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
-
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.compose")
@@ -42,25 +39,29 @@ kotlin {
                 implementation("com.squareup.moshi:moshi:1.14.0")
                 implementation("com.squareup.moshi:moshi-kotlin:1.14.0")
                 implementation("com.squareup.moshi:moshi-adapters:1.14.0")
+                implementation("com.squareup.moshi:moshi-kotlin-codegen:1.14.0")
 
                 implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
 
-                implementation("com.arkivanov.decompose:decompose:1.0.0-alpha-07")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-alpha-07")
+                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-01")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-01")
                 implementation("com.arkivanov.essenty:parcelable:0.6.0")
                 implementation("com.arkivanov.essenty:lifecycle:0.6.0")
 
-                implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.0")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.0")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.0")
-                implementation("com.arkivanov.mvikotlin:rx:3.0.0") // Disposable
+                implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.2")
+                implementation("com.arkivanov.mvikotlin:rx:3.0.2") // Disposable
 
                 implementation("com.badoo.reaktive:reaktive:1.2.2")
                 implementation("com.badoo.reaktive:coroutines-interop:1.2.2")
 
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
+                implementation("com.michael-bull.kotlin-result:kotlin-result:1.1.16") // Result type
+
+                implementation("ch.oxc.nikea:nikea-kt:1.0-SNAPSHOT")
             }
         }
         val commonTest by getting {
@@ -88,7 +89,7 @@ kotlin {
                 implementation("com.squareup.sqldelight:sqlite-driver:1.5.4")
 
                 runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
-                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.0.0") // DefaultStoreFactory
+                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.0.2") // DefaultStoreFactory
             }
         }
         val desktopTest by getting
@@ -96,7 +97,8 @@ kotlin {
 }
 
 android {
-    namespace = "app.opia.android"
+    // NOTE: needs to be different from actual android to prevent 'Type app.opia.android.Buildconfig is defined multiple times'
+    namespace = "app.opia"
     compileSdk = 33
     buildToolsVersion = "30.0.3"
 

@@ -1,9 +1,9 @@
-package app.opia.common.ui.splash
+package app.opia.common.ui.chats.chat
 
 import app.opia.common.di.ServiceLocator
-import app.opia.common.ui.splash.OpiaSplash.*
-import app.opia.common.ui.splash.SplashStore.Label
-import app.opia.common.ui.splash.SplashStore.State
+import app.opia.common.ui.chats.chat.OpiaChat.*
+import app.opia.common.ui.chats.chat.store.ChatStore.*
+import app.opia.common.ui.chats.chat.store.ChatStoreProvider
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
 import com.arkivanov.decompose.ComponentContext
@@ -15,16 +15,19 @@ import com.badoo.reaktive.base.Consumer
 import com.badoo.reaktive.base.invoke
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.*
 
-class SplashComponent(
+class ChatComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
+    selfId: UUID,
+    peerId: UUID,
     private val output: Consumer<Output>
-) : OpiaSplash, ComponentContext by componentContext {
+) : OpiaChat, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
-        SplashStoreProvider(
-            storeFactory = storeFactory, di = di
+        ChatStoreProvider(
+            storeFactory = storeFactory, di = di, selfId = selfId, peerId = peerId
         ).provide()
     }
 
@@ -32,20 +35,24 @@ class SplashComponent(
 
     override val events: Flow<Event> = store.labels.map(transform = labelToEvent)
 
-    override fun onNext(to: Output) {
-        output(to)
+    override fun onBackClicked() {
+        output(Output.Back)
+    }
+
+    override fun onSendClicked(txt: String) {
+        store.accept(Intent.AddMessage(txt))
     }
 }
 
 internal val stateToModel: (State) -> Model = {
     Model(
-        next = it.next
+        self = it.self, peer = it.peer, msgs = it.msgs
     )
 }
 
 internal val labelToEvent: (Label) -> Event = {
     when (it) {
-        is Label.Auth -> Event.Auth
-        is Label.Main -> Event.Main(it.selfId)
+        is Label.NetworkError -> Event.NetworkError
+        is Label.UnknownError -> Event.UnknownError
     }
 }

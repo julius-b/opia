@@ -1,17 +1,17 @@
 package app.opia.common.api.repository
 
-import app.opia.common.api.ApiResponse
 import app.opia.common.api.HintedApiSuccess
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.PlainApiSuccess
 import app.opia.common.api.endpoint.ActorApi
 import app.opia.common.api.model.*
 import app.opia.common.db.Actor
+import app.opia.common.db.Actor_link
 import app.opia.common.db.Auth_session
 import app.opia.common.db.Owned_field
-import app.opia.db.OpiaDatabase
+import app.opia.common.di.ServiceLocator
 import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
+import com.squareup.sqldelight.runtime.coroutines.mapToOneNotNull
 import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.flow.first
 import java.util.*
@@ -19,17 +19,9 @@ import java.util.*
 const val ActorTypeUser = 'u'
 
 class ActorRepo(
-    private val db: OpiaDatabase, private val api: ActorApi
+    private val di: ServiceLocator, val api: ActorApi
 ) {
-    suspend fun getAuthHeader(accessToken: String? = null): String {
-        if (accessToken == null) {
-            // NOTE: fail is no session exists
-            // TODO handle outdated session here?
-            val authSession = db.sessionQueries.getLatest().asFlow().mapToOne().first()
-            return "Bearer ${authSession.access_token}"
-        }
-        return "Bearer $accessToken"
-    }
+    private val db = di.database
 
     suspend fun createOwnedField(
         scope: OwnedFieldScope, content: String
@@ -37,7 +29,7 @@ class ActorRepo(
         val installation = db.installationQueries.getSelf().asFlow().mapToOneOrNull().first()
             ?: throw IllegalStateException("installation required for owned field")
 
-        return api.postOwned(installation.id, CreateOwnedFieldParams(scope, content))
+        return api.createOwned(installation.id, CreateOwnedFieldParams(scope, content))
     }
 
     suspend fun patchOwnedField(
@@ -47,7 +39,7 @@ class ActorRepo(
         return res
     }
 
-    // login does not just create an authSession but also saves it & the actor in the db
+    // login does not just create an authSession but also saves it & the actor in the dbt
     suspend fun login(
         unique: String, secret: String
     ): HintedApiSuccess<Auth_session, AuthHints> {
@@ -55,26 +47,39 @@ class ActorRepo(
             ?: throw IllegalStateException("installation required for auth_session")
 
         // TODO query for existing io's? expect caller to truncate db beforehand otherwise
-        val asRes = api.postAuthSession(
+        val asRes = api.createAuthSession(
             installation.id, CreateAuthSessionParams(unique, secret, true, null)
         )
         if (asRes !is NetworkResponse.ApiSuccess) return asRes
 
         val authSession = asRes.body.data
+        val authHeader = "Bearer ${authSession.access_token}"
 
         // internet/other failure still possible - user needs to try again, a new session is created
-        val actorRes = api.get(getAuthHeader(authSession.access_token), authSession.actor_id)
+        val actorRes = api.getUnauthenticated(authHeader, authSession.actor_id)
         if (actorRes !is NetworkResponse.ApiSuccess) {
-            println("[!] ActorRepo > get-actor > bad res: $actorRes")
+            println("[!] ActorRepo > login > get-actor > bad res: $actorRes")
+            return NetworkResponse.UnknownError()
+        }
+        val actor = actorRes.body.data
+
+        val vaultKey = di.keyRepo.syncVaultKey(authSession, secret)
+        println("[+] ActorRepo > login > vaultKey: $vaultKey")
+        if (vaultKey == null) {
+            println("[!] ActorRepo > login > vault-key > no vault key")
             return NetworkResponse.UnknownError()
         }
 
         // ensure actor is available in db when session is queries
         db.transaction {
+            afterCommit { println("[+] ActorRepo > login > committed") }
+            afterRollback { println("[!] ActorRepo > login > rollback") }
+
+            db.vaultKeyQueries.insert(vaultKey)
             db.sessionQueries.insert(authSession)
-            db.actorQueries.insert(actorRes.body.data)
-            asRes.body.hints!!.owned_fields.forEach {
-                db.owned_fieldQueries.insert(it)
+            db.actorQueries.insert(actor)
+            for (ownedField in asRes.body.hints!!.owned_fields) {
+                db.ownedFieldQueries.insert(ownedField)
             }
         }
 
@@ -92,23 +97,42 @@ class ActorRepo(
         val params = CreateActorParams(type, handle, name, secret)
 
         // "${it.id},${it.verification_code}"
-        val res = api.post(installation.id, ownedFields.map { it.id.toString() }, params)
+        val res = api.create(installation.id, ownedFields.map { it.id.toString() }, params)
         if (res !is NetworkResponse.ApiSuccess) return res
 
-        db.actorQueries.insert(res.body.data)
-        res.body.hints!!.owned_fields.forEach {
-            db.owned_fieldQueries.insert(it)
+        db.transaction {
+            afterCommit { println("[*] ActorRepo > register > committed") }
+            afterRollback { println("[!] ActorRepo > register > rollback") }
+            db.actorQueries.insert(res.body.data)
+            for (ownedField in res.body.hints!!.owned_fields) {
+                db.ownedFieldQueries.insert(ownedField)
+            }
         }
 
         return res
     }
 
-    // TODO: cache, clearCache on auth
-    suspend fun getActor(id: UUID) {
-        val res = api.get(getAuthHeader(), id)
+    suspend fun getActor(id: UUID, cache: Boolean = true): Actor? {
+        val res = api.get(id)
+        if (res is NetworkResponse.ApiSuccess) {
+            val actor = res.body.data
+            db.actorQueries.insert(actor)
+            return actor
+        }
+        if (res.httpCode == 401) return null
+        return db.actorQueries.getById(id).asFlow().mapToOneOrNull().first()
     }
 
-    suspend fun getActorByHandle(handle: String) {}
+    suspend fun getActorByHandle(handle: String): Actor? {
+        val res = api.getByHandle(handle)
+        if (res is NetworkResponse.ApiSuccess) {
+            val actor = res.body.data
+            db.actorQueries.insert(actor)
+            return actor
+        }
+        if (res.httpCode == 401) return null
+        return db.actorQueries.getByHandle(handle).asFlow().mapToOneOrNull().first()
+    }
 
     // if null
     suspend fun getLatestAuthSession(
@@ -118,9 +142,34 @@ class ActorRepo(
         return authSession
     }
 
+    suspend fun listLinks(): List<Actor_link>? {
+        val linksRes = api.listLinks()
+        return when (linksRes) {
+            is NetworkResponse.ApiSuccess -> {
+                val links = linksRes.body.data
+                db.actorQueries.transaction {
+                    for (link in links) {
+                        db.actorQueries.insertLink(link)
+                    }
+                }
+                links
+            }
+            else -> null
+        }
+    }
+
     suspend fun logout() {
         db.transaction {
-            db.owned_fieldQueries.truncate()
+            afterCommit { println("[*] ActorRepo > logout > committed") }
+            afterRollback { println("[!] ActorRepo > logout > rollback") }
+            db.msgQueries.truncateReceiptSyncStatus()
+            db.msgQueries.truncateReceipts()
+            db.msgQueries.truncatePayloads()
+            db.msgQueries.truncate()
+            db.keyPairQueries.truncate()
+            db.vaultKeyQueries.truncate()
+            db.ownedFieldQueries.truncate()
+            db.actorQueries.truncateLinks()
             db.sessionQueries.truncate()
             db.actorQueries.truncate()
             db.installationQueries.truncateOwnerships() // not installation itself

@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import app.opia.common.ui.component.opiaBlue
+import app.opia.common.ui.splash.OpiaSplash.Next
 import app.opia.common.ui.splash.OpiaSplash.Event
 import app.opia.common.ui.splash.OpiaSplash.Output
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
@@ -22,26 +23,27 @@ fun SplashContent(component: OpiaSplash) {
 
     // too slow...
     LaunchedEffect(Unit) {
-        println("Splash > collecting...")
+        println("[*] Splash > collecting...")
         component.events.collectLatest {
             if (emitted) return@collectLatest
             emitted = true
-            println("Splash > event: $it")
+            println("[+] Splash > event: $it")
             when (it) {
                 is Event.Auth -> component.onNext(Output.Auth)
-                is Event.Main -> component.onNext(Output.Main)
+                is Event.Main -> component.onNext(Output.Main(it.selfId))
             }
         }
     }
 
-    println("Splash > [$emitted] model.next: ${model.next}")
+    println("[*] Splash > [$emitted] model.next: ${model.next}")
     when (model.next) {
-        OpiaSplash.Next.AUTH -> {
+        is Next.Auth -> {
             if (!emitted) component.onNext(Output.Auth)
             emitted = true
         }
-        OpiaSplash.Next.MAIN -> {
-            if (!emitted) component.onNext(Output.Main)
+        is Next.Main -> {
+            val main = (model.next as Next.Main)
+            if (!emitted) component.onNext(Output.Main(main.selfId))
             emitted = true
         }
         else -> {}

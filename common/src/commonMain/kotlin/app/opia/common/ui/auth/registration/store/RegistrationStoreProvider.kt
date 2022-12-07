@@ -15,17 +15,18 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import com.squareup.sqldelight.runtime.coroutines.asFlow
+import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mainDispatcher
 import java.time.LocalDate
 
 internal class RegistrationStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val di: ServiceLocator
+    private val storeFactory: StoreFactory, private val di: ServiceLocator
 ) {
-
     fun provide(): RegistrationStore =
         object : RegistrationStore, Store<Intent, State, Label> by storeFactory.create(
             name = "RegistrationStore",
@@ -51,6 +52,7 @@ internal class RegistrationStoreProvider(
         data class SecretChanged(val secret: String) : Msg()
         data class SecretError(val error: String) : Msg()
         data class SecretRepeatChanged(val secretRepeat: String) : Msg()
+
         //data class EnteringVerificationCode(val enteringVerificationCode: Boolean) : Msg()
         data class PhoneVerificationChanged(val phoneVerification: Owned_field?) : Msg()
         data class PhoneVerificationCodeChanged(val verificationCode: String) : Msg()
@@ -59,25 +61,33 @@ internal class RegistrationStoreProvider(
         //object Authenticated : Msg()
     }
 
-    private inner class ExecutorImpl : CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
+    private inner class ExecutorImpl :
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
         override fun executeAction(action: Unit, getState: () -> State) {}
 
-        override fun executeIntent(intent: Intent, getState: () -> State) =
-            when (intent) {
-                is Intent.NextToFinalize -> nextToFinalize(getState())
-                is Intent.SetUiState -> dispatch(Msg.UiStateChanged(intent.uiState))
-                is Intent.SetName -> dispatch(Msg.NameChanged(intent.name))
-                is Intent.SetHandle -> dispatch(Msg.HandleChanged(intent.handle))
-                is Intent.SetDOB -> dispatch(Msg.DOBChanged(intent.dob))
-                is Intent.SetEmail -> dispatch(Msg.EmailChanged(intent.email))
-                is Intent.SetPhoneNo -> dispatch(Msg.PhoneNoChanged(intent.phoneNo))
-                is Intent.SetSecret -> dispatch(Msg.SecretChanged(intent.secret))
-                is Intent.SetSecretRepeat -> dispatch(Msg.SecretRepeatChanged(intent.secretRepeat))
-                is Intent.SetPhoneVerificationCode -> dispatch(Msg.PhoneVerificationCodeChanged(intent.verificationCode))
-                is Intent.ConfirmPhoneVerificationDialog -> confirmPhoneVerification(getState())
-                is Intent.DismissPhoneVerificationDialog -> dispatch(Msg.PhoneVerificationChanged(null))
-                is Intent.Authenticate -> register(getState())
-            }
+        override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {
+            is Intent.NextToFinalize -> nextToFinalize(getState())
+            is Intent.SetUiState -> dispatch(Msg.UiStateChanged(intent.uiState))
+            is Intent.SetName -> dispatch(Msg.NameChanged(intent.name))
+            is Intent.SetHandle -> dispatch(Msg.HandleChanged(intent.handle))
+            is Intent.SetDOB -> dispatch(Msg.DOBChanged(intent.dob))
+            is Intent.SetEmail -> dispatch(Msg.EmailChanged(intent.email))
+            is Intent.SetPhoneNo -> dispatch(Msg.PhoneNoChanged(intent.phoneNo))
+            is Intent.SetSecret -> dispatch(Msg.SecretChanged(intent.secret))
+            is Intent.SetSecretRepeat -> dispatch(Msg.SecretRepeatChanged(intent.secretRepeat))
+            is Intent.SetPhoneVerificationCode -> dispatch(
+                Msg.PhoneVerificationCodeChanged(
+                    intent.verificationCode
+                )
+            )
+            is Intent.ConfirmPhoneVerificationDialog -> confirmPhoneVerification(getState())
+            is Intent.DismissPhoneVerificationDialog -> dispatch(
+                Msg.PhoneVerificationChanged(
+                    null
+                )
+            )
+            is Intent.Authenticate -> register(getState())
+        }
 
         private fun doRegister(state: State) {
             if (state.phoneVerification == null) {
@@ -112,7 +122,13 @@ internal class RegistrationStoreProvider(
                             di.actorRepo.login(state.handle, state.secret)
                         }
                         when (asRes) {
-                            is NetworkResponse.ApiSuccess -> publish(Label.Authenticated)
+                            is NetworkResponse.ApiSuccess -> {
+                                val actorId = asRes.body.data.actor_id
+                                val self =
+                                    di.database.actorQueries.getById(actorId).asFlow().mapToOne()
+                                        .first()
+                                publish(Label.Authenticated(self.id))
+                            }
                             // can't handle ApiError
                             is NetworkResponse.NetworkError -> publish(Label.NetworkError)
                             else -> publish(Label.UnknownError)
@@ -169,7 +185,9 @@ internal class RegistrationStoreProvider(
 
             scope.launch {
                 // validate ownedField
-                val res = di.actorRepo.patchOwnedField(state.phoneVerification.id, state.phoneVerification.verification_code)
+                val res = di.actorRepo.patchOwnedField(
+                    state.phoneVerification.id, state.phoneVerification.verification_code
+                )
                 when (res) {
                     is NetworkResponse.ApiSuccess -> {
                         // only hide dialog & proceed when owned has been validated successfully
@@ -202,7 +220,8 @@ internal class RegistrationStoreProvider(
 
             dispatch(Msg.LoadingChanged(true))
             scope.launch {
-                val installation = withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
+                val installation =
+                    withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
                 println("[*] register > installation: $installation")
                 if (installation == null) {
                     publish(Label.NetworkError)
@@ -212,11 +231,15 @@ internal class RegistrationStoreProvider(
                 val ownedFieldRequests = mutableListOf<Pair<OwnedFieldType, String>>()
 
                 // create owned phone if the current number hasn't been validated already
-                if (state.phoneVerification?.valid != true) ownedFieldRequests += Pair(OwnedFieldType.phone_no, state.phoneNo)
+                if (state.phoneVerification?.valid != true) ownedFieldRequests += Pair(
+                    OwnedFieldType.phone_no, state.phoneNo
+                )
 
                 // created owned email if one has been entered it hasn't been validated yet
                 // NOTE: valid is never true, just ensure owned exists - `state.emailVerification?.valid != true`
-                if (state.email.isNotBlank() && state.emailVerification == null) ownedFieldRequests += Pair(OwnedFieldType.email, state.email)
+                if (state.email.isNotBlank() && state.emailVerification == null) ownedFieldRequests += Pair(
+                    OwnedFieldType.email, state.email
+                )
 
                 println("[*] register > ownedFieldRequests: $ownedFieldRequests")
                 if (ownedFieldRequests.isEmpty()) {
@@ -247,8 +270,16 @@ internal class RegistrationStoreProvider(
                                             when (status.code) {
                                                 Code.constraint -> {
                                                     when (owned.first) {
-                                                        OwnedFieldType.email -> dispatch(Msg.EmailError("invalid email"))
-                                                        OwnedFieldType.phone_no -> dispatch(Msg.PhoneNoError("invalid phone number"))
+                                                        OwnedFieldType.email -> dispatch(
+                                                            Msg.EmailError(
+                                                                "invalid email"
+                                                            )
+                                                        )
+                                                        OwnedFieldType.phone_no -> dispatch(
+                                                            Msg.PhoneNoError(
+                                                                "invalid phone number"
+                                                            )
+                                                        )
                                                     }
                                                 }
                                                 else -> {}
@@ -260,8 +291,16 @@ internal class RegistrationStoreProvider(
                                             when (status.code) {
                                                 Code.conflict -> {
                                                     when (owned.first) {
-                                                        OwnedFieldType.email -> dispatch(Msg.EmailError("already used"))
-                                                        OwnedFieldType.phone_no -> dispatch(Msg.PhoneNoError("already used"))
+                                                        OwnedFieldType.email -> dispatch(
+                                                            Msg.EmailError(
+                                                                "already used"
+                                                            )
+                                                        )
+                                                        OwnedFieldType.phone_no -> dispatch(
+                                                            Msg.PhoneNoError(
+                                                                "already used"
+                                                            )
+                                                        )
                                                     }
                                                 }
                                                 else -> {}
@@ -293,7 +332,8 @@ internal class RegistrationStoreProvider(
 
                 if (ownedFieldRequests.any { it.first == OwnedFieldType.phone_no }) {
                     // if new phoneNo has been added (& server requires validation) then show dialog now
-                    val phoneNo = ownedFieldResponses.firstOrNull { it.type == OwnedFieldType.phone_no && !it.valid }
+                    val phoneNo =
+                        ownedFieldResponses.firstOrNull { it.type == OwnedFieldType.phone_no && !it.valid }
                     dispatch(Msg.PhoneVerificationChanged(phoneNo))
 
                     // otherwise continue account creation (trigger doRegister)
@@ -322,45 +362,42 @@ internal class RegistrationStoreProvider(
     }
 
     private object ReducerImpl : Reducer<State, Msg> {
-        override fun State.reduce(msg: Msg): State =
-            when (msg) {
-                is Msg.UiStateChanged -> copy(uiState = msg.uiState)
-                is Msg.LoadingChanged -> copy(isLoading = msg.loading)
-                is Msg.NameChanged -> copy(name = msg.name, nameError = null)
-                is Msg.NameError -> copy(nameError = msg.error)
-                is Msg.HandleChanged -> copy(handle = msg.handle, handleError = null)
-                is Msg.HandleError -> copy(handleError = msg.error)
-                is Msg.DOBChanged -> copy(dob = msg.dob, dobError = null)
-                is Msg.DOBError -> copy(dobError = msg.error)
-                is Msg.EmailChanged -> copy(
-                    email = msg.email,
-                    emailError = null,
-                    emailVerification = null
-                )
-                is Msg.EmailError -> copy(emailError = msg.error)
-                is Msg.PhoneNoChanged -> copy(
-                    phoneNo = msg.phoneNo,
-                    phoneNoError = null,
-                    phoneVerification = null,
-                    phoneVerificationCode = ""
-                )
-                is Msg.PhoneNoError -> copy(phoneNoError = msg.error)
-                is Msg.SecretChanged -> copy(secret = msg.secret, secretError = null)
-                is Msg.SecretError -> copy(secretError = msg.error)
-                is Msg.SecretRepeatChanged -> copy(secretRepeat = msg.secretRepeat)
-                is Msg.PhoneVerificationChanged -> copy(
-                    phoneVerification = msg.phoneVerification,
-                    phoneVerificationCode = msg.phoneVerification?.verification_code ?: "",
-                    // reset error
-                    phoneVerificationCodeError = null
-                )
-                is Msg.PhoneVerificationCodeChanged -> copy(
-                    phoneVerification = phoneVerification!!.copy(content = msg.verificationCode),
-                    phoneVerificationCode = msg.verificationCode,
-                    phoneVerificationCodeError = null
-                )
-                is Msg.PhoneVerificationCodeError -> copy(phoneVerificationCodeError = msg.error)
-                is Msg.EmailVerificationChanged -> copy(emailVerification = msg.emailVerification)
-            }
+        override fun State.reduce(msg: Msg): State = when (msg) {
+            is Msg.UiStateChanged -> copy(uiState = msg.uiState)
+            is Msg.LoadingChanged -> copy(isLoading = msg.loading)
+            is Msg.NameChanged -> copy(name = msg.name, nameError = null)
+            is Msg.NameError -> copy(nameError = msg.error)
+            is Msg.HandleChanged -> copy(handle = msg.handle, handleError = null)
+            is Msg.HandleError -> copy(handleError = msg.error)
+            is Msg.DOBChanged -> copy(dob = msg.dob, dobError = null)
+            is Msg.DOBError -> copy(dobError = msg.error)
+            is Msg.EmailChanged -> copy(
+                email = msg.email, emailError = null, emailVerification = null
+            )
+            is Msg.EmailError -> copy(emailError = msg.error)
+            is Msg.PhoneNoChanged -> copy(
+                phoneNo = msg.phoneNo,
+                phoneNoError = null,
+                phoneVerification = null,
+                phoneVerificationCode = ""
+            )
+            is Msg.PhoneNoError -> copy(phoneNoError = msg.error)
+            is Msg.SecretChanged -> copy(secret = msg.secret, secretError = null)
+            is Msg.SecretError -> copy(secretError = msg.error)
+            is Msg.SecretRepeatChanged -> copy(secretRepeat = msg.secretRepeat)
+            is Msg.PhoneVerificationChanged -> copy(
+                phoneVerification = msg.phoneVerification,
+                phoneVerificationCode = msg.phoneVerification?.verification_code ?: "",
+                // reset error
+                phoneVerificationCodeError = null
+            )
+            is Msg.PhoneVerificationCodeChanged -> copy(
+                phoneVerification = phoneVerification!!.copy(content = msg.verificationCode),
+                phoneVerificationCode = msg.verificationCode,
+                phoneVerificationCodeError = null
+            )
+            is Msg.PhoneVerificationCodeError -> copy(phoneVerificationCodeError = msg.error)
+            is Msg.EmailVerificationChanged -> copy(emailVerification = msg.emailVerification)
+        }
     }
 }

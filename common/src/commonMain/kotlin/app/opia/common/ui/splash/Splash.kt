@@ -2,6 +2,7 @@ package app.opia.common.ui.splash
 
 import com.arkivanov.decompose.value.Value
 import kotlinx.coroutines.flow.Flow
+import java.util.*
 
 interface OpiaSplash {
 
@@ -16,17 +17,18 @@ interface OpiaSplash {
         val next: Next?
     )
 
-    enum class Next {
-        AUTH, MAIN
+    sealed class Next {
+        object Auth : Next()
+        data class Main(val selfId: UUID) : Next()
     }
 
     sealed class Event {
         object Auth : Event()
-        object Main : Event()
+        data class Main(val selfId: UUID) : Event()
     }
 
     sealed class Output {
         object Auth : Output()
-        object Main : Output()
+        data class Main(val selfId: UUID) : Output()
     }
 }

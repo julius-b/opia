@@ -60,7 +60,7 @@ actual fun DatePickerView(
         title = { Text("Enter a date") },
         confirmButton = {
             Button(onClick = {
-                println("date: $day/$month/$year")
+                println("[*] DatePicker > date: $day/$month/$year")
                 val date = LocalDate.of(year, month, day)
                 onValueChange(date)
             }) {

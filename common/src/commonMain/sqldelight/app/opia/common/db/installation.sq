@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS installation (
   client_vname TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS installation_self_idx ON installation (self) WHERE self = TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS installation_self_unique_idx ON installation (self) WHERE self = TRUE;
 
 listAll:
 SELECT * FROM installation;
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS installation_ownership (
   deleted_at TEXT AS ZonedDateTime -- used by server
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS installation_ownership_actor_id_installation_id_idx ON installation_ownership (actor_id, installation_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS installation_ownership_actor_id_installation_id_unique_idx ON installation_ownership (actor_id, installation_id) WHERE deleted_at IS NULL;
 
 truncateOwnerships:
 DELETE FROM installation_ownership;

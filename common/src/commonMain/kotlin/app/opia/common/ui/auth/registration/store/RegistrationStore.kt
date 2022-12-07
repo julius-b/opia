@@ -5,9 +5,9 @@ import app.opia.common.ui.auth.registration.RegistrationState
 import app.opia.common.ui.auth.registration.store.RegistrationStore.*
 import com.arkivanov.mvikotlin.core.store.Store
 import java.time.LocalDate
+import java.util.*
 
 internal interface RegistrationStore : Store<Intent, State, Label> {
-
     sealed class Intent {
         object NextToFinalize : Intent()
         data class SetUiState(val uiState: RegistrationState) : Intent()
@@ -49,7 +49,7 @@ internal interface RegistrationStore : Store<Intent, State, Label> {
 
     sealed class Label {
         object OwnedFieldConfirmed : Label()
-        object Authenticated : Label()
+        data class Authenticated(val selfId: UUID) : Label()
         object NetworkError : Label()
         object UnknownError : Label()
     }

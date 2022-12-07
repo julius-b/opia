@@ -6,6 +6,7 @@ import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.util.*
 
 const val VERIFICATION_CODE_LENGTH = 6
 
@@ -53,7 +54,7 @@ interface OpiaRegistration {
 
     fun onAuthenticate()
 
-    fun onAuthenticated()
+    fun onAuthenticated(selfId: UUID)
 
     data class Model(
         val uiState: RegistrationState,
@@ -79,13 +80,13 @@ interface OpiaRegistration {
 
     sealed class Event {
         object OwnedFieldConfirmed : Event()
-        object Authenticated : Event()
+        data class Authenticated(val selfId: UUID) : Event()
         object NetworkError : Event()
         object UnknownError : Event()
     }
 
     sealed class Output {
-        object Authenticated : Output()
+        data class Authenticated(val selfId: UUID) : Output()
         object BackToAuth : Output()
     }
 }

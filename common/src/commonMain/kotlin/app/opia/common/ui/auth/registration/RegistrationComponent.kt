@@ -1,9 +1,8 @@
-package app.opia.common.ui.auth.registration.integration
+package app.opia.common.ui.auth.registration
 
+import app.opia.common.db.Actor
 import app.opia.common.di.ServiceLocator
-import app.opia.common.ui.auth.registration.OpiaRegistration
 import app.opia.common.ui.auth.registration.OpiaRegistration.*
-import app.opia.common.ui.auth.registration.RegistrationState
 import app.opia.common.ui.auth.registration.store.RegistrationStore.*
 import app.opia.common.ui.auth.registration.store.RegistrationStoreProvider
 import app.opia.common.utils.asValue
@@ -18,6 +17,7 @@ import com.badoo.reaktive.base.invoke
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.util.UUID
 
 class RegistrationComponent(
     componentContext: ComponentContext,
@@ -25,7 +25,6 @@ class RegistrationComponent(
     di: ServiceLocator,
     private val output: Consumer<Output>
 ) : OpiaRegistration, ComponentContext by componentContext {
-
     private val store = instanceKeeper.getStore {
         RegistrationStoreProvider(
             storeFactory = storeFactory, di = di
@@ -92,7 +91,40 @@ class RegistrationComponent(
         store.accept(Intent.Authenticate)
     }
 
-    override fun onAuthenticated() {
-        output(Output.Authenticated)
+    override fun onAuthenticated(selfId: UUID) {
+        output(Output.Authenticated(selfId))
+    }
+}
+
+internal val stateToModel: (State) -> Model = {
+    Model(
+        uiState = it.uiState,
+        isLoading = it.isLoading,
+        name = it.name,
+        nameError = it.nameError,
+        handle = it.handle,
+        handleError = it.handleError,
+        dob = it.dob,
+        dobError = it.dobError,
+        email = it.email,
+        emailError = it.emailError,
+        phoneNo = it.phoneNo,
+        phoneNoError = it.phoneNoError,
+        secret = it.secret,
+        secretError = it.secretError,
+        secretRepeat = it.secretRepeat,
+        phoneVerification = it.phoneVerification,
+        phoneVerificationCode = it.phoneVerificationCode,
+        phoneVerificationCodeError = it.phoneVerificationCodeError,
+        emailVerification = it.emailVerification
+    )
+}
+
+internal val labelToEvent: (Label) -> Event = {
+    when (it) {
+        is Label.OwnedFieldConfirmed -> Event.OwnedFieldConfirmed
+        is Label.Authenticated -> Event.Authenticated(it.selfId)
+        is Label.NetworkError -> Event.NetworkError
+        is Label.UnknownError -> Event.UnknownError
     }
 }
