@@ -1,5 +1,8 @@
 # Opia
 
+## End-to-End encrypted chat
+- Using [Nikea](https://github.com/julius-b/nikea-kt) handshakes.
+
 ## TODO
 - determine Retrofit host config using Build config (DEBUG/PROD)
 - logging library

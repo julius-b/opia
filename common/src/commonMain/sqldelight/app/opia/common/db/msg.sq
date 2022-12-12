@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS msg_rcpt (
   rcpt_ioid TEXT AS UUID NOT NULL,
   dup INTEGER NOT NULL,
   hs_id TEXT AS UUID, -- set if rjct
+  cause TEXT,
   recv_at TEXT AS ZonedDateTime,
   rjct_at TEXT AS ZonedDateTime CHECK (rjct_at IS NULL OR (recv_at IS NULL AND read_at IS NULL)),
   read_at TEXT AS ZonedDateTime
@@ -53,7 +54,7 @@ getReceipt:
 SELECT * FROM msg_rcpt WHERE msg_id = ? AND rcpt_ioid = ? AND dup = ?;
 
 upsertReceipt:
-INSERT OR REPLACE INTO msg_rcpt (msg_id, rcpt_ioid, dup, hs_id, recv_at, rjct_at, read_at) VALUES ?;
+INSERT OR REPLACE INTO msg_rcpt (msg_id, rcpt_ioid, dup, hs_id, cause, recv_at, rjct_at, read_at) VALUES ?;
 
 -- messages from self (any device? would never occur, but maybe if msgs were kept after ioid change) where no receipt _exists_
 -- considers a rejected message as synced (rejections need to be handled differently than normal uploads)

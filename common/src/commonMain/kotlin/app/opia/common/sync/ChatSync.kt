@@ -77,7 +77,7 @@ class ChatSync(
         // ioid to (hs)
         val newHandshakes = mutableMapOf<UUID, MutableList<ActiveHandshake>>()
 
-        fun reject(hsId: UUID, packets: List<ApiMsgPacket>, reason: String? = null) {
+        fun reject(hsId: UUID, packets: List<ApiMsgPacket>, reason: String) {
             db.msgQueries.transaction {
                 afterRollback {
                     println("[!] Sync > rx > rollback: $hsId")
@@ -85,7 +85,7 @@ class ChatSync(
 
                 for (p in packets) {
                     val rcpt = Msg_rcpt(
-                        p.msg_id, p.rcpt_ioid, p.dup, hsId, null, ZonedDateTime.now(), null
+                        p.msg_id, p.rcpt_ioid, p.dup, hsId, reason, null, ZonedDateTime.now(), null
                     )
                     db.msgQueries.upsertReceipt(rcpt)
                     db.msgQueries.upsertReceiptSyncStatus(
@@ -97,26 +97,29 @@ class ChatSync(
 
         for ((hsId, packets) in perHandshake) {
             val peerIO = packets[0].from_ioid
+            // doesn't happen because server inserts the receipt with read_at
+            if (peerIO == sess.ioid) println("[~] Sync > rx [$peerIO/$hsId] > msg from self")
             val hs: ActiveHandshake
             if (activeHandshakes[peerIO]?.meta?.id == hsId) {
                 hs = activeHandshakes[peerIO]!!
             } else {
-                println("[*] Sync > rx [$peerIO:$hsId] > not currently active, querying...")
+                println("[*] Sync > rx [$peerIO/$hsId] > hs not currently active, querying...")
                 val hsRes = di.messagingService.getHandshake(hsId)
                 when (hsRes) {
                     is NetworkResponse.ApiSuccess -> {
                         val apiHandshake = hsRes.body.data
-                        println("[+] Sync > rx [$peerIO:$hsId] > remote lookup successful, created_at: ${apiHandshake.created_at}")
+                        println("[+] Sync > rx [$peerIO/$hsId] > remote lookup successful, created_at: ${apiHandshake.created_at}")
+                        // TODO remove, server wouldn't return it...
                         if (apiHandshake.initiator_ioid == sess.ioid) {
-                            println("[~] Sync > rx [$peerIO:$hsId] > hs is self-initiated, can't restore - rejecting...")
-                            reject(hsId, packets)
+                            println("[~] Sync > rx [$peerIO/$hsId] > hs is self-initiated, can't restore - rejecting...")
+                            reject(hsId, packets, "rx_self_initiated_hs_lost")
                             break
                         }
                         val init = initHandshake(apiHandshake, isInitiator = false)
                         val err = init.getError()
                         if (err != null) {
-                            println("[!] Sync > rx [$peerIO:$hsId] > failed to init hs: $err")
-                            reject(hsId, packets, err.name)
+                            println("[!] Sync > rx [$peerIO/$hsId] > failed to init hs: $err")
+                            reject(hsId, packets, "rx_init/${err.name}")
                             break
                         }
                         hs = init.unwrap()
@@ -127,12 +130,12 @@ class ChatSync(
                     }
                     is NetworkResponse.ApiError -> {
                         // eg. bc self-initiated: {"code":"forbidden","errors":{"initiator_ioid":[{"code":"forbidden"}]}}
-                        println("[~] Sync > rx [$peerIO:$hsId] > remote lookup failed - rejecting...")
-                        reject(hsId, packets)
+                        println("[~] Sync > rx [$peerIO/$hsId] > remote lookup failed - rejecting...")
+                        reject(hsId, packets, "rx_remote_lookup/${hsRes.body.code}")
                         break
                     }
                     else -> {
-                        println("[!] Sync > rx [$peerIO:$hsId] > api lookup failed, assuming temporary - ignoring all #${packets.size} packets")
+                        println("[!] Sync > rx [$peerIO/$hsId] > api lookup failed, assuming temporary - ignoring all #${packets.size} packets")
                         break
                     }
                 }
@@ -142,19 +145,19 @@ class ChatSync(
                 val raw = Base64.getDecoder().decode(p.payload_enc).toUByteArray()
                 val n = hs.hs.rx.n.toLong()
                 if (n != p.seqno) {
-                    println("[*] Sync > rx [$peerIO:$hsId@${p.dup}] > n: $n, seqno: ${p.seqno}")
+                    println("[*] Sync > rx [$peerIO/$hsId@${p.dup}] > n: $n, seqno: ${p.seqno}")
                     // NOTE: if it fails it's (likely) the first one
-                    reject(hsId, packets)
+                    reject(hsId, packets, "rx_seqno/$n/${p.seqno}")
                     break
                 }
                 val payload = hs.hs.rx.decrypt(raw).toByteArray().toUtf8()
-                println("[+] Sync > rx [$peerIO:$hsId@${p.dup}] > payload: $payload")
+                println("[+] Sync > rx [$peerIO/$hsId@${p.dup}] > payload: '$payload'")
                 val rcpt = Msg_rcpt(
-                    p.msg_id, p.rcpt_ioid, p.dup, hsId, ZonedDateTime.now(), null, null
+                    p.msg_id, p.rcpt_ioid, p.dup, hsId, null, ZonedDateTime.now(), null, null
                 )
                 db.msgQueries.transaction {
                     afterRollback {
-                        println("[!] Sync > rx [$peerIO:$hsId@${p.dup}] > rollback")
+                        println("[!] Sync > rx [$peerIO/$hsId@${p.dup}] > rollback")
                     }
                     db.msgQueries.insert(msg)
                     db.msgQueries.insertPayload(Msg_payload(msg.id, payload))
@@ -187,7 +190,7 @@ class ChatSync(
             for (newHs in newPeerHandshakes) {
                 val currentHs = activeHandshakes[peerIO] // every loop
                 if (currentHs == null || currentHs.meta.created_at.isBefore(newHs.meta.created_at)) {
-                    println("[+] Sync > rx [$peerIO] > current handshake outdated, using new: ${newHs.meta.id}")
+                    println("[+] Sync > rx [$peerIO] > current handshake (${currentHs?.meta?.id}) outdated, using new: ${newHs.meta.id}")
                     activeHandshakes[peerIO] = newHs
                 }
             }
@@ -231,14 +234,14 @@ class ChatSync(
             for ((dup, updsForDup) in upds.groupBy { it.dup }) {
                 val u = updsForDup.maxBy { it.created_at }
                 db.msgQueries.upsertReceipt(
-                    Msg_rcpt(msgId, u.rcpt_ioid, dup, u.hs_id, u.recv_at, u.rjct_at, u.read_at)
+                    Msg_rcpt(msgId, u.rcpt_ioid, dup, u.hs_id, u.cause, u.recv_at, u.rjct_at, u.read_at)
                 )
                 // delete updates in order (ensure oldest is deleted before newest is deleted)
 
                 for (upd in updsForDup.sortedBy { it.created_at }) {
                     // uploadRejected only sees the latest rejections, which should suffice but somehow doesn't
-                    if (activeHandshakes[upd.rcpt_ioid]?.meta?.id == upd.hs_id) {
-                        println("[~] Sync > rcpts > deleting active handshake: ${upd.hs_id}")
+                    if (upd.rjct_at != null && activeHandshakes[upd.rcpt_ioid]?.meta?.id == upd.hs_id) {
+                        println("[~] Sync > rcpts > got rjct, deleting active handshake: ${upd.hs_id}")
                         activeHandshakes.remove(upd.rcpt_ioid)
                     }
                     val delRes = di.messagingService.deleteReceiptUpdate(
@@ -334,7 +337,7 @@ class ChatSync(
         println("[*] Sync > tx > unsynced: #${unsynced.size}")
 
         // need to loop per msg first for initial receipt creation
-        unsynced.forEach tx@{ msg ->
+        for (msg in unsynced) {
             println("[*] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > preparing msg: '${msg.payload}'")
             // TODO don't query IOs every time if rcpt is the same...
             val rcptIOsRes = di.messagingService.listIOs(msg.rcpt_id)
@@ -347,57 +350,56 @@ class ChatSync(
             println("[+] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > peer IOs (#${rcptIOs.size}): $rcptIOs")
 
             val packets = mutableListWithCap<ApiMsgPacket>(rcptIOs.size)
-            // for ((_rcptIdx, rcptIO) in rcptIOs.withIndex()) {
-            rcptIOs.forEachIndexed rcptIO@{ _rcptIdx, rcptIO ->
-                val rcptIdx = _rcptIdx + 1
+            rcptIO@for ((rcptIdx, rcptIO) in rcptIOs.withIndex()) {
+                println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > active hs: ${activeHandshakes.get(rcptIO)?.meta?.id}")
                 if (!activeHandshakes.containsKey(rcptIO)) {
                     if (!keyed.contains(rcptIO)) {
-                        println("[~] Sync > tx [${msg.rcpt_id}/$rcptIdx] > peer has no keys, skipping...")
-                        return@rcptIO
+                        println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > peer has no keys, skipping...")
+                        continue@rcptIO
                     }
-                    println("[*] Sync > tx [${msg.rcpt_id}/$rcptIdx] > no active handshake, initiating...")
+                    println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > no active handshake, initiating...")
                     val hsRes = di.messagingService.createHandshake(CreateHandshakeParams(rcptIO))
                     when (hsRes) {
                         is NetworkResponse.NetworkError -> {
-                            println("[~] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > no network, aborting tx...")
+                            println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > no network, aborting tx...")
                             return false
                         }
                         is NetworkResponse.ApiError -> {
                             val errors = hsRes.body.errors
                             if (errors.hasErr("ekex", Code.required)) {
-                                println("[~] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > self out of ekex keys, aborting tx...")
+                                println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > self out of ekex keys, aborting tx...")
+                                return false
                             } else if (errors.hasErr("responder_ioid", Code.expired)) {
-                                println("[~] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > peer is out of keys, skipping...")
-                                return@rcptIO
+                                println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > peer is out of keys, skipping...")
+                                continue@rcptIO
                             } else {
-                                println("[!] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > unexpected api err: $hsRes")
+                                println("[!] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > unexpected api err: $hsRes")
                                 return false
                             }
-                            return@tx
                         }
                         is NetworkResponse.UnknownError -> {
-                            println("[!] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > unexpected err: $hsRes")
+                            println("[!] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > unexpected err: $hsRes")
                             return false
                         }
                         else -> {}
                     }
                     val hs = (hsRes as NetworkResponse.ApiSuccess).body.data
-                    println("[+] Sync > tx [${msg.rcpt_id}/$rcptIdx] > +hs > registered: $hs")
+                    println("[+] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > registered: $hs")
 
                     val init = initHandshake(hs, isInitiator = true)
                     val err = init.getError()
                     if (err != null) {
-                        println("[!] Sync > rx [${msg.rcpt_id}/$rcptIdx] > +hs > err: $err")
-                        return@rcptIO
+                        println("[!] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > err: $err")
+                        continue@rcptIO
                     }
                     activeHandshakes[rcptIO] = init.unwrap()
                 }
                 val hs = activeHandshakes[rcptIO]!!
-                println("[*] Sync > tx [${msg.rcpt_id}/$rcptIdx] > encrypting msg: '${msg.payload}'")
+                println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > encrypting msg: '${msg.payload}'")
                 val payload = msg.payload.encodeToByteArray().toUByteArray()
                 val enc = hs.hs.tx.encrypt(payload)
                 val enc64 = enc.toByteArray().toBase64()
-                println("[*] Sync > tx [${msg.rcpt_id}/$rcptIdx] > enc: $enc64")
+                println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > enc: $enc64")
                 val p = ApiMsgPacket(
                     msg.id,
                     msg.from_id,
@@ -405,18 +407,18 @@ class ChatSync(
                     rcptIO,
                     dup = 0L,
                     hs.meta.id,
-                    seqno = hs.hs.tx.n.toLong() - 1L,
+                    seqno = hs.hs.tx.n.toLong() - 1L, // already encrypted
                     enc64
                 )
                 packets.add(p)
             }
-            println("[+] Sync > tx [+${msg.id}] > packets: #${packets.size}")
+            println("[+] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > packets: #${packets.size}")
 
             val msgRes = di.messagingService.create(CreateMsgParams(msg.id, msg.rcpt_id, packets))
             when (msgRes) {
                 is NetworkResponse.ApiSuccess -> {
                     val body = msgRes.body.data
-                    println("[+] Sync > tx [+${msg.id}] > got receipts: #${body.rcpts.size} (rjct: #${body.rcpts.count { it.rjct_at != null }})")
+                    println("[+] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > got receipts: #${body.rcpts.size} (rjct: #${body.rcpts.count { it.rjct_at != null }})")
                     db.msgQueries.transaction {
                         for (rcpt in body.rcpts) {
                             db.msgQueries.upsertReceipt(rcpt)
@@ -424,11 +426,11 @@ class ChatSync(
                     }
                 }
                 is NetworkResponse.ApiError, is NetworkResponse.UnknownError -> {
-                    println("[!] Sync > tx [+${msg.id}] > unexpected err, aborting tx...")
+                    println("[!] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > unexpected err, aborting tx...")
                     return false
                 }
                 is NetworkResponse.NetworkError -> {
-                    println("[~] Sync > tx [+${msg.id}] > no network, aborting tx...")
+                    println("[~] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > no network, aborting tx...")
                     return false
                 }
             }

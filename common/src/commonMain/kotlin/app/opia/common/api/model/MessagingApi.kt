@@ -63,6 +63,7 @@ data class ApiUpdatedReceipt(
     val rcpt_ioid: UUID,
     val dup: Long,
     val hs_id: UUID?,
+    val cause: String?,
     val recv_at: ZonedDateTime?,
     val rjct_at: ZonedDateTime?,
     val read_at: ZonedDateTime?,
@@ -71,7 +72,7 @@ data class ApiUpdatedReceipt(
     val created_at: ZonedDateTime
 ) {
     fun toMsgRcpt() = Msg_rcpt(
-        msg_id, rcpt_ioid, dup, hs_id, recv_at, rjct_at, read_at
+        msg_id, rcpt_ioid, dup, hs_id, cause, recv_at, rjct_at, read_at
     )
 }
 

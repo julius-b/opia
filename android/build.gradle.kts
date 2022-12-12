@@ -11,7 +11,7 @@ dependencies {
     implementation(project(":common"))
     implementation(compose.material)
     implementation("androidx.activity:activity-compose:1.6.1")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.2")
 
     implementation("com.squareup.sqldelight:runtime:1.5.4")
     implementation("com.squareup.sqldelight:coroutines-extensions:1.5.4")
