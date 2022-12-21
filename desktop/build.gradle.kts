@@ -29,11 +29,7 @@ kotlin {
 
                 implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
                 implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.2")
                 implementation("com.arkivanov.mvikotlin:rx:3.0.2") // Disposable
-
-                implementation("com.badoo.reaktive:reaktive:1.2.2")
-                implementation("com.badoo.reaktive:coroutines-interop:1.2.2")
 
                 // Desktop
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main

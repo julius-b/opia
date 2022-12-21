@@ -18,7 +18,6 @@ dependencies {
 
     implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
     implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
-    implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.2")
     implementation("com.arkivanov.mvikotlin:rx:3.0.2") // Disposable
 
     // Android

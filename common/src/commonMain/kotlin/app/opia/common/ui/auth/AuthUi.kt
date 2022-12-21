@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 @ExperimentalComposeUiApi
 @Composable
-fun AuthContent(component: OpiaAuth) {
+fun AuthContent(component: AuthComponent) {
     val model by component.models.subscribeAsState()
 
     val keyboardController = LocalSoftwareKeyboardController.current

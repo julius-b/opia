@@ -14,7 +14,7 @@ interface OpiaRoot {
 
     sealed class Child {
         data class Splash(val component: OpiaSplash) : Child()
-        data class Auth(val component: OpiaAuth) : Child()
+        data class Auth(val component: OpiaAuth, val onError: () -> Unit) : Child()
         data class Registration(val component: OpiaRegistration) : Child()
         data class Chats(val component: OpiaChats) : Child()
         data class Chat(val component: OpiaChat) : Child()

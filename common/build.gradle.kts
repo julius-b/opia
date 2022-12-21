@@ -52,11 +52,7 @@ kotlin {
 
                 implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
                 implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-reaktive:3.0.2")
                 implementation("com.arkivanov.mvikotlin:rx:3.0.2") // Disposable
-
-                implementation("com.badoo.reaktive:reaktive:1.2.2")
-                implementation("com.badoo.reaktive:coroutines-interop:1.2.2")
 
                 implementation("com.michael-bull.kotlin-result:kotlin-result:1.1.16") // Result type
                 implementation("com.russhwolf:multiplatform-settings:1.0.0-RC")

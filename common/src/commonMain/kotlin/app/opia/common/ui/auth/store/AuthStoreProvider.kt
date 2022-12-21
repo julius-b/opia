@@ -1,30 +1,29 @@
 package app.opia.common.ui.auth.store
 
+import OpiaDispatchers
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.store.AuthStore.*
 import com.arkivanov.mvikotlin.core.store.Reducer
-import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import mainDispatcher
 
 internal class AuthStoreProvider(
-    private val storeFactory: StoreFactory, private val di: ServiceLocator
+    private val storeFactory: StoreFactory,
+    private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers
 ) {
     fun provide(): AuthStore =
         object : AuthStore, Store<Intent, State, Label> by storeFactory.create(
             name = "AuthStore",
             initialState = State(),
-            bootstrapper = SimpleBootstrapper(Unit),
             executorFactory = ::ExecutorImpl,
             reducer = ReducerImpl
         ) {}
@@ -39,8 +38,7 @@ internal class AuthStoreProvider(
     }
 
     private inner class ExecutorImpl :
-        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
-        override fun executeAction(action: Unit, getState: () -> State) {}
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(dispatchers.main) {
 
         override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {
             is Intent.SetUnique -> dispatch(Msg.UniqueChanged(intent.unique))
@@ -54,8 +52,9 @@ internal class AuthStoreProvider(
 
             scope.launch {
                 // withContext: fix stuttering
-                val installation =
-                    withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
+                val installation = withContext(dispatchers.io) {
+                    di.installationRepo.upsertInstallation()
+                }
                 println("[*] login > installation: $installation")
                 if (installation == null) {
                     publish(Label.NetworkError)
@@ -63,8 +62,9 @@ internal class AuthStoreProvider(
                 }
 
                 // save session & actor
-                val authRes =
-                    withContext(Dispatchers.IO) { di.actorRepo.login(state.unique, state.secret) }
+                val authRes = withContext(dispatchers.io) {
+                    di.actorRepo.login(state.unique, state.secret)
+                }
                 when (authRes) {
                     is NetworkResponse.ApiSuccess -> {
                         val actorId = authRes.body.data.actor_id

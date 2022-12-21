@@ -20,7 +20,7 @@ class SplashComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
-    private val output: Consumer<Output>
+    private val output: Flow<Output>
 ) : OpiaSplash, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         SplashStoreProvider(
@@ -33,7 +33,7 @@ class SplashComponent(
     override val events: Flow<Event> = store.labels.map(transform = labelToEvent)
 
     override fun onNext(to: Output) {
-        output(to)
+        output.(to)
     }
 }
 

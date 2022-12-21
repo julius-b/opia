@@ -23,7 +23,7 @@ fun OpiaRootContent(component: OpiaRoot) {
     ) {
         when (val child = it.instance) {
             is Child.Splash -> SplashContent(child.component)
-            is Child.Auth -> AuthContent(child.component)
+            is Child.Auth -> AuthContent(child.component, child.onError)
             is Child.Registration -> RegistrationContent(child.component)
             is Child.Chats -> ChatsContent(child.component)
             is Child.Chat -> ChatContent(child.component)

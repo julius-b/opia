@@ -12,20 +12,19 @@ import app.opia.common.ui.chats.chat.ChatComponent
 import app.opia.common.ui.chats.chat.OpiaChat
 import app.opia.common.ui.splash.OpiaSplash
 import app.opia.common.ui.splash.SplashComponent
-import app.opia.common.utils.Consumer
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.*
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import com.arkivanov.mvikotlin.core.store.StoreFactory
-import com.badoo.reaktive.base.Consumer
+import kotlinx.coroutines.flow.Flow
 import java.util.*
 
 class OpiaRootComponent internal constructor(
     componentContext: ComponentContext,
     private val splash: (ComponentContext, Consumer<OpiaSplash.Output>) -> OpiaSplash,
-    private val auth: (ComponentContext, Consumer<OpiaAuth.Output>) -> OpiaAuth,
+    private val auth: (ComponentContext, (OpiaAuth.Output) -> Unit) -> OpiaAuth,
     private val registration: (ComponentContext, Consumer<OpiaRegistration.Output>) -> OpiaRegistration,
     private val chats: (ComponentContext, selfId: UUID, Consumer<OpiaChats.Output>) -> OpiaChats,
     private val chat: (ComponentContext, selfId: UUID, peerId: UUID, Consumer<OpiaChat.Output>) -> OpiaChat

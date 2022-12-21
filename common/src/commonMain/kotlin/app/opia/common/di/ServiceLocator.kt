@@ -7,6 +7,7 @@ import app.opia.common.api.repository.KeyRepo
 import app.opia.common.db.DriverFactory
 import app.opia.common.db.createDatabase
 
+// TODO use Koin
 class ServiceLocator(driverFactory: DriverFactory) {
     val database = createDatabase(driverFactory)
     val okHttpClient = RetrofitClient.newOkHttpClient(this)
