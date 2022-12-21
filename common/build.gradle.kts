@@ -29,9 +29,9 @@ kotlin {
                 api(compose.foundation)
                 api(compose.material)
                 api(compose.materialIconsExtended)
+                api(compose.ui)
                 api("androidx.appcompat:appcompat:1.5.1")
-                implementation("androidx.compose.ui:ui:1.3.1")
-                implementation("androidx.compose.ui:ui-text:1.3.1")
+                api("androidx.compose.ui:ui-text:1.3.2")
 
                 implementation("com.squareup.sqldelight:runtime:1.5.4")
                 implementation("com.squareup.sqldelight:coroutines-extensions:1.5.4")
@@ -45,10 +45,10 @@ kotlin {
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
 
-                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-01")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-01")
-                implementation("com.arkivanov.essenty:parcelable:0.6.0")
-                implementation("com.arkivanov.essenty:lifecycle:0.6.0")
+                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-02")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-02")
+                implementation("com.arkivanov.essenty:parcelable:0.7.0")
+                implementation("com.arkivanov.essenty:lifecycle:0.7.0")
 
                 implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
                 implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
@@ -58,8 +58,8 @@ kotlin {
                 implementation("com.badoo.reaktive:reaktive:1.2.2")
                 implementation("com.badoo.reaktive:coroutines-interop:1.2.2")
 
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
                 implementation("com.michael-bull.kotlin-result:kotlin-result:1.1.16") // Result type
+                implementation("com.russhwolf:multiplatform-settings:1.0.0-RC")
 
                 implementation("ch.oxc.nikea:nikea-kt:1.0-SNAPSHOT")
             }
@@ -88,7 +88,7 @@ kotlin {
                 api(compose.preview)
                 implementation("com.squareup.sqldelight:sqlite-driver:1.5.4")
 
-                runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
                 implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.0.2") // DefaultStoreFactory
             }
         }
@@ -98,7 +98,7 @@ kotlin {
 
 android {
     // NOTE: needs to be different from actual android to prevent 'Type app.opia.android.Buildconfig is defined multiple times'
-    namespace = "app.opia"
+    namespace = "app.opia.common"
     compileSdk = 33
     buildToolsVersion = "30.0.3"
 
