@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 @ExperimentalComposeUiApi
 @Composable
-fun AuthContent(component: AuthComponent) {
+fun AuthContent(component: OpiaAuth) {
     val model by component.models.subscribeAsState()
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -138,7 +138,7 @@ fun AuthContent(component: AuthComponent) {
 
             // TODO IconButton, either person symbol or loading symbol / trailingIcon loading
             Button(
-                onClick = component::onLoginClicked,
+                onClick = component::onLogin,
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
                 enabled = !model.isLoading,
                 colors = ButtonDefaults.buttonColors(
@@ -162,7 +162,7 @@ fun AuthContent(component: AuthComponent) {
                 )
 
                 Button(
-                    onClick = component::onRegisterClicked,
+                    onClick = component::onRegister,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     enabled = !model.isLoading,
                     colors = ButtonDefaults.buttonColors(
@@ -173,7 +173,7 @@ fun AuthContent(component: AuthComponent) {
                 }
 
                 Button(
-                    onClick = { component.onContinueWithProviderClicked(IdentityProvider.Google) },
+                    onClick = { component.onContinueWithProvider(IdentityProvider.Google) },
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     enabled = !model.isLoading,
                     colors = ButtonDefaults.buttonColors(
@@ -184,7 +184,7 @@ fun AuthContent(component: AuthComponent) {
                 }
 
                 Button(
-                    onClick = { component.onContinueWithProviderClicked(IdentityProvider.Apple) },
+                    onClick = { component.onContinueWithProvider(IdentityProvider.Apple) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     enabled = !model.isLoading,
                     colors = ButtonDefaults.buttonColors(

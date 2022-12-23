@@ -1,5 +1,6 @@
 package app.opia.common.ui.splash
 
+import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.splash.OpiaSplash.*
 import app.opia.common.ui.splash.SplashStore.Label
@@ -11,8 +12,8 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
-import com.badoo.reaktive.base.Consumer
-import com.badoo.reaktive.base.invoke
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -20,11 +21,12 @@ class SplashComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
-    private val output: Flow<Output>
+    dispatchers: OpiaDispatchers,
+    private val output: (Output) -> Unit
 ) : OpiaSplash, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         SplashStoreProvider(
-            storeFactory = storeFactory, di = di
+            storeFactory = storeFactory, di = di, dispatchers = dispatchers
         ).provide()
     }
 
@@ -33,7 +35,7 @@ class SplashComponent(
     override val events: Flow<Event> = store.labels.map(transform = labelToEvent)
 
     override fun onNext(to: Output) {
-        output.(to)
+        output(to)
     }
 }
 

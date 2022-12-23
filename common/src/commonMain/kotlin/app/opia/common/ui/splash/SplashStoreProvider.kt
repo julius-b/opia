@@ -1,6 +1,6 @@
 package app.opia.common.ui.splash
 
-import app.opia.common.api.model.ApiUpdatedReceipt
+import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.splash.SplashStore.Label
 import app.opia.common.ui.splash.SplashStore.State
@@ -15,12 +15,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import mainDispatcher
-import java.time.ZonedDateTime
 import java.util.*
 
 internal class SplashStoreProvider(
-    private val storeFactory: StoreFactory, private val di: ServiceLocator
+    private val storeFactory: StoreFactory,
+    private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers
 ) {
     fun provide(): SplashStore =
         object : SplashStore, Store<Nothing, State, Label> by storeFactory.create(
@@ -40,7 +40,7 @@ internal class SplashStoreProvider(
     }
 
     private inner class ExecutorImpl :
-        CoroutineExecutor<Nothing, Action, State, Msg, Label>(mainDispatcher()) {
+        CoroutineExecutor<Nothing, Action, State, Msg, Label>(dispatchers.main) {
         override fun executeAction(action: Action, getState: () -> State) = when (action) {
             is Action.Start -> loadStateFromDb()
         }

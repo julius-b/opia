@@ -1,5 +1,6 @@
 package app.opia.desktop
 
+import DefaultDispatchers
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -14,16 +15,13 @@ import app.opia.common.ui.OpiaRootComponent
 import app.opia.common.ui.OpiaRootContent
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.jetbrains.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import com.badoo.reaktive.coroutinesinterop.asScheduler
-import com.badoo.reaktive.scheduler.overrideSchedulers
-import kotlinx.coroutines.Dispatchers
 
+@OptIn(ExperimentalDecomposeApi::class)
 fun main() {
-    overrideSchedulers(main = Dispatchers.Main::asScheduler)
-
     val lifecycle = LifecycleRegistry()
     val root = opiaRoot(DefaultComponentContext(lifecycle = lifecycle))
 
@@ -46,5 +44,6 @@ fun main() {
 private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
     componentContext = componentContext,
     storeFactory = DefaultStoreFactory(),
-    di = ServiceLocator(DriverFactory())
+    di = ServiceLocator(DriverFactory()),
+    dispatchers = DefaultDispatchers
 )

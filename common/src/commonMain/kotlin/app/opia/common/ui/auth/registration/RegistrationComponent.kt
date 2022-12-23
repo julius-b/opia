@@ -1,5 +1,6 @@
 package app.opia.common.ui.auth.registration
 
+import OpiaDispatchers
 import app.opia.common.db.Actor
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.registration.OpiaRegistration.*
@@ -12,8 +13,6 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
-import com.badoo.reaktive.base.Consumer
-import com.badoo.reaktive.base.invoke
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -23,11 +22,12 @@ class RegistrationComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
-    private val output: Consumer<Output>
+    private val dispatchers: OpiaDispatchers,
+    private val output: (Output) -> Unit
 ) : OpiaRegistration, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         RegistrationStoreProvider(
-            storeFactory = storeFactory, di = di
+            storeFactory = storeFactory, di = di, dispatchers = dispatchers
         ).provide()
     }
 

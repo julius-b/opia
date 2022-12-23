@@ -1,5 +1,6 @@
 package app.opia.common.ui.chats.store
 
+import OpiaDispatchers
 import app.opia.common.api.repository.LinkPerm
 import app.opia.common.db.Actor
 import app.opia.common.db.Actor_link
@@ -18,13 +19,15 @@ import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import mainDispatcher
 import java.time.ZonedDateTime
 import java.util.*
 import kotlin.system.exitProcess
 
 internal class ChatsStoreProvider(
-    private val storeFactory: StoreFactory, private val selfId: UUID, private val di: ServiceLocator
+    private val storeFactory: StoreFactory,
+    private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers,
+    private val selfId: UUID
 ) {
     private val db = di.database
 
@@ -46,7 +49,7 @@ internal class ChatsStoreProvider(
     }
 
     private inner class ExecutorImpl :
-        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(dispatchers.main) {
         override fun executeAction(action: Unit, getState: () -> State) {
             GlobalScope.launch(Dispatchers.Default + CoroutineExceptionHandler { _, throwable ->
                 println("[!] ChatSync > t: $throwable")

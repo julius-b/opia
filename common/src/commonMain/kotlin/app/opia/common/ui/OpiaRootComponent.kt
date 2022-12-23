@@ -1,6 +1,6 @@
 package app.opia.common.ui
 
-import app.opia.common.db.Actor
+import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthComponent
 import app.opia.common.ui.auth.OpiaAuth
@@ -18,39 +18,54 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import com.arkivanov.mvikotlin.core.store.StoreFactory
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.Channel
 import java.util.*
 
+// TODO output func or Flow?? try Channel, but let's see how sync behaves
 class OpiaRootComponent internal constructor(
     componentContext: ComponentContext,
-    private val splash: (ComponentContext, Consumer<OpiaSplash.Output>) -> OpiaSplash,
+    private val splash: (ComponentContext, (OpiaSplash.Output) -> Unit) -> OpiaSplash,
     private val auth: (ComponentContext, (OpiaAuth.Output) -> Unit) -> OpiaAuth,
-    private val registration: (ComponentContext, Consumer<OpiaRegistration.Output>) -> OpiaRegistration,
-    private val chats: (ComponentContext, selfId: UUID, Consumer<OpiaChats.Output>) -> OpiaChats,
-    private val chat: (ComponentContext, selfId: UUID, peerId: UUID, Consumer<OpiaChat.Output>) -> OpiaChat
+    private val registration: (ComponentContext, (OpiaRegistration.Output) -> Unit) -> OpiaRegistration,
+    private val chats: (ComponentContext, selfId: UUID, (OpiaChats.Output) -> Unit) -> OpiaChats,
+    private val chat: (ComponentContext, selfId: UUID, peerId: UUID, (OpiaChat.Output) -> Unit) -> OpiaChat
 ) : OpiaRoot, ComponentContext by componentContext {
 
     constructor(
         componentContext: ComponentContext,
         storeFactory: StoreFactory,
         di: ServiceLocator,
+        dispatchers: OpiaDispatchers
     ) : this(componentContext = componentContext, splash = { childContext, output ->
         SplashComponent(
-            componentContext = childContext, storeFactory = storeFactory, di = di, output = output
+            componentContext = childContext,
+            storeFactory = storeFactory,
+            di = di,
+            dispatchers = dispatchers,
+            output = output
         )
     }, auth = { childContext, output ->
         AuthComponent(
-            componentContext = childContext, storeFactory = storeFactory, di = di, output = output
+            componentContext = childContext,
+            storeFactory = storeFactory,
+            di = di,
+            dispatchers = dispatchers,
+            output = output
         )
     }, registration = { childContext, output ->
         RegistrationComponent(
-            componentContext = childContext, storeFactory = storeFactory, di = di, output = output
+            componentContext = childContext,
+            storeFactory = storeFactory,
+            dispatchers = dispatchers,
+            di = di,
+            output = output
         )
     }, chats = { childContext, selfId, output ->
         ChatsComponent(
             componentContext = childContext,
             storeFactory = storeFactory,
             di = di,
+            dispatchers = dispatchers,
             selfId = selfId,
             output = output
         )
@@ -59,6 +74,7 @@ class OpiaRootComponent internal constructor(
             componentContext = childContext,
             storeFactory = storeFactory,
             di = di,
+            dispatchers = dispatchers,
             selfId = selfId,
             peerId = peerId,
             output = output
@@ -80,19 +96,21 @@ class OpiaRootComponent internal constructor(
         configuration: Configuration, componentContext: ComponentContext
     ): OpiaRoot.Child = when (configuration) {
         is Configuration.Splash -> OpiaRoot.Child.Splash(
-            splash(componentContext, Consumer(::onSplashOutput))
+            splash(componentContext, ::onSplashOutput)
         )
         is Configuration.Auth -> OpiaRoot.Child.Auth(
-            auth(componentContext, Consumer(::onAuthOutput))
+            auth(componentContext, ::onAuthOutput)
         )
         is Configuration.Registration -> OpiaRoot.Child.Registration(
-            registration(componentContext, Consumer(::onRegistrationOutput))
+            registration(componentContext, ::onRegistrationOutput)
         )
         is Configuration.Chats -> OpiaRoot.Child.Chats(
-            chats(componentContext, configuration.selfId, Consumer(::onChatsOutput))
+            chats(componentContext, configuration.selfId, ::onChatsOutput)
         )
         is Configuration.Chat -> OpiaRoot.Child.Chat(
-            chat(componentContext, configuration.selfId, configuration.peerId, Consumer(::onChatOutput))
+            chat(
+                componentContext, configuration.selfId, configuration.peerId, ::onChatOutput
+            )
         )
     }
 
@@ -123,7 +141,9 @@ class OpiaRootComponent internal constructor(
 
     private fun onChatsOutput(output: OpiaChats.Output): Unit = when (output) {
         is OpiaChats.Output.Back -> navigation.replaceCurrent(Configuration.Splash)
-        is OpiaChats.Output.Selected -> navigation.push(Configuration.Chat(output.selfId, output.peerId))
+        is OpiaChats.Output.Selected -> navigation.push(
+            Configuration.Chat(output.selfId, output.peerId)
+        )
     }
 
     private fun onChatOutput(output: OpiaChat.Output) = when (output) {

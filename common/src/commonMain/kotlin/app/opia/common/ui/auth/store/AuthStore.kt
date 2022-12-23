@@ -17,7 +17,6 @@ internal interface AuthStore : Store<Intent, State, Label> {
 
     data class State(
         val isLoading: Boolean = false,
-        val generalError: String? = null,
         val unique: String = "",
         val uniqueError: String? = null,
         val secret: String = "",

@@ -1,5 +1,6 @@
 package app.opia.common.ui.chats.chat.store
 
+import OpiaDispatchers
 import app.opia.common.db.Actor
 import app.opia.common.db.Msg
 import app.opia.common.db.Msg_payload
@@ -14,17 +15,16 @@ import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
 import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import mainDispatcher
 import java.time.ZonedDateTime
 import java.util.*
 
 internal class ChatStoreProvider(
     private val storeFactory: StoreFactory,
     private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers,
     private val selfId: UUID,
     private val peerId: UUID
 ) {
@@ -49,7 +49,7 @@ internal class ChatStoreProvider(
 
     // TODO how to get actor parameter into initial state
     private inner class ExecutorImpl :
-        CoroutineExecutor<Intent, Action, State, Msg, Label>(mainDispatcher()) {
+        CoroutineExecutor<Intent, Action, State, Msg, Label>(dispatchers.main) {
         override fun executeAction(action: Action, getState: () -> State) = when (action) {
             is Action.Start -> loadStateFromDb(getState())
         }

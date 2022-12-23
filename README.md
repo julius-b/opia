@@ -4,6 +4,7 @@
 - Using [Nikea](https://github.com/julius-b/nikea-kt) handshakes.
 
 ## TODO
+- DI
 - determine Retrofit host config using Build config (DEBUG/PROD)
 - logging library
 - `stringResource(id)` for UI

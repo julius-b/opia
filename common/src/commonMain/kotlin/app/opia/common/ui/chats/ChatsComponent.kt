@@ -1,6 +1,6 @@
 package app.opia.common.ui.chats
 
-import app.opia.common.db.Actor
+import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.chats.OpiaChats.*
 import app.opia.common.ui.chats.store.ChatsStore.*
@@ -12,22 +12,21 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
-import com.badoo.reaktive.base.Consumer
-import com.badoo.reaktive.base.invoke
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.UUID
+import java.util.*
 
 class ChatsComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
+    dispatchers: OpiaDispatchers,
     private val selfId: UUID,
-    private val output: Consumer<Output>
+    private val output: (Output) -> Unit
 ) : OpiaChats, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         ChatsStoreProvider(
-            storeFactory = storeFactory, selfId = selfId, di = di
+            storeFactory = storeFactory, di = di, dispatchers = dispatchers, selfId = selfId
         ).provide()
     }
 
@@ -62,10 +61,7 @@ class ChatsComponent(
 
 internal val stateToModel: (State) -> Model = {
     Model(
-        self = it.self,
-        chats = it.chats,
-        searchQuery = it.searchQuery,
-        searchError = it.searchError
+        self = it.self, chats = it.chats, searchQuery = it.searchQuery, searchError = it.searchError
     )
 }
 

@@ -30,7 +30,6 @@ internal class AuthStoreProvider(
 
     private sealed class Msg {
         data class LoadingChanged(val loading: Boolean) : Msg()
-        data class GeneralErrorChanged(val error: String) : Msg()
         data class UniqueChanged(val unique: String) : Msg()
         data class SecretChanged(val secret: String) : Msg()
         data class UniqueError(val error: String) : Msg()
@@ -129,7 +128,6 @@ internal class AuthStoreProvider(
     private object ReducerImpl : Reducer<State, Msg> {
         override fun State.reduce(msg: Msg) = when (msg) {
             is Msg.LoadingChanged -> copy(isLoading = msg.loading)
-            is Msg.GeneralErrorChanged -> copy(generalError = msg.error)
             is Msg.UniqueChanged -> copy(unique = msg.unique, uniqueError = null)
             is Msg.UniqueError -> copy(uniqueError = msg.error)
             is Msg.SecretChanged -> copy(secret = msg.secret, secretError = null)

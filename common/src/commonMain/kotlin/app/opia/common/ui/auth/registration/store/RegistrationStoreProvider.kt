@@ -1,5 +1,6 @@
 package app.opia.common.ui.auth.registration.store
 
+import OpiaDispatchers
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.model.OwnedFieldScope
@@ -21,11 +22,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import mainDispatcher
 import java.time.LocalDate
 
 internal class RegistrationStoreProvider(
-    private val storeFactory: StoreFactory, private val di: ServiceLocator
+    private val storeFactory: StoreFactory,
+    private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers
 ) {
     fun provide(): RegistrationStore =
         object : RegistrationStore, Store<Intent, State, Label> by storeFactory.create(
@@ -62,7 +64,7 @@ internal class RegistrationStoreProvider(
     }
 
     private inner class ExecutorImpl :
-        CoroutineExecutor<Intent, Unit, State, Msg, Label>(mainDispatcher()) {
+        CoroutineExecutor<Intent, Unit, State, Msg, Label>(dispatchers.main) {
         override fun executeAction(action: Unit, getState: () -> State) {}
 
         override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {

@@ -1,5 +1,6 @@
 package app.opia.common.ui.chats.chat
 
+import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.chats.chat.OpiaChat.*
 import app.opia.common.ui.chats.chat.store.ChatStore.*
@@ -11,8 +12,6 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
-import com.badoo.reaktive.base.Consumer
-import com.badoo.reaktive.base.invoke
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.*
@@ -21,13 +20,18 @@ class ChatComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
+    dispatchers: OpiaDispatchers,
     selfId: UUID,
     peerId: UUID,
-    private val output: Consumer<Output>
+    private val output: (Output) -> Unit
 ) : OpiaChat, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         ChatStoreProvider(
-            storeFactory = storeFactory, di = di, selfId = selfId, peerId = peerId
+            storeFactory = storeFactory,
+            di = di,
+            dispatchers = dispatchers,
+            selfId = selfId,
+            peerId = peerId
         ).provide()
     }
 
