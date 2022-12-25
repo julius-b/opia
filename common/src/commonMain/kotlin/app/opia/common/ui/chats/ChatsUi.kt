@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,14 +14,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.opia.common.ui.auth.TextFieldError
 import app.opia.common.ui.chats.OpiaChats.Event
-import app.opia.common.ui.component.opiaBlue
-import app.opia.common.ui.component.opiaGray
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 import java.util.*
 
@@ -33,26 +31,10 @@ fun ChatsContent(component: OpiaChats) {
 
     var showSearch by rememberSaveable { mutableStateOf(false) }
 
-    Scaffold(topBar = {
-        TopAppBar(title = { Text(text = "Chats of ${model.self?.name}") },
-            backgroundColor = opiaBlue,
-            contentColor = opiaGray,
-            actions = {
-                IconButton(onClick = component::logout) {
-                    Icon(
-                        imageVector = Icons.Default.Logout, contentDescription = "logout"
-                    )
-                }
-            })
-    }, floatingActionButton = {
-        FloatingActionButton(onClick = { showSearch = true }) {
-            Icon(imageVector = Icons.Default.Search, contentDescription = "search")
-        }
-    }) {
+    Box {
         LaunchedEffect(Unit) {
             component.events.collect {
                 when (it) {
-                    is Event.LoggedOut -> component.onBackClicked()
                     is Event.SearchFinished -> showSearch = false
                     is Event.ChatOpened -> component.continueToChat(it.selfId, it.peerId)
                 }
@@ -103,6 +85,12 @@ fun ChatsContent(component: OpiaChats) {
                     Spacer(modifier = Modifier.height(2.dp))
                 }
             })
+        }
+
+        FloatingActionButton(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            onClick = { showSearch = true }) {
+            Icon(imageVector = Icons.Default.Search, contentDescription = "search")
         }
     }
 }

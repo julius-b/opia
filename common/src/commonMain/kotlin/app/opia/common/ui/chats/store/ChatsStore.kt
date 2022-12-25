@@ -8,7 +8,6 @@ import java.util.*
 
 interface ChatsStore : Store<Intent, State, Label> {
     sealed class Intent {
-        object Logout : Intent()
         data class SetSearchQuery(val query: String) : Intent()
         object Search : Intent()
         data class OpenChat(val id: UUID) : Intent()
@@ -23,7 +22,6 @@ interface ChatsStore : Store<Intent, State, Label> {
     )
 
     sealed class Label {
-        object LoggedOut : Label()
         object SearchFinished : Label()
         data class ChatOpened(val selfId: UUID, val peerId: UUID) : Label()
     }

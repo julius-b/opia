@@ -28,9 +28,11 @@ internal class ChatStoreProvider(
     private val selfId: UUID,
     private val peerId: UUID
 ) {
+    val db = di.database
+
     fun provide(): ChatStore =
         object : ChatStore, Store<Intent, State, Label> by storeFactory.create(
-            name = "OpiaChatStore",
+            name = "ChatStore",
             initialState = State(),
             bootstrapper = SimpleBootstrapper(Action.Start),
             executorFactory = ::ExecutorImpl,
@@ -60,11 +62,11 @@ internal class ChatStoreProvider(
 
         private fun loadStateFromDb(state: State) {
             scope.launch {
-                val self = di.database.actorQueries.getById(selfId).asFlow().mapToOne().first()
-                val peer = di.database.actorQueries.getById(peerId).asFlow().mapToOne().first()
+                val self = db.actorQueries.getById(selfId).asFlow().mapToOne().first()
+                val peer = db.actorQueries.getById(peerId).asFlow().mapToOne().first()
                 dispatch(Msg.SelfUpdated(self))
                 dispatch(Msg.PeerUpdated(peer))
-                di.database.msgQueries.listAll(peerId, selfId).asFlow().mapToList().collectLatest {
+                db.msgQueries.listAll(peerId, selfId).asFlow().mapToList().collectLatest {
                     dispatch(Msg.MsgsUpdated(it.map {
                         // from may be any actor in a group, self is unique
                         val from = if (it.from_id == selfId) null else peer.name
@@ -80,12 +82,12 @@ internal class ChatStoreProvider(
                 UUID.randomUUID(), state.self!!.id, state.peer.id, ZonedDateTime.now(), null
             )
             val msgPayload = Msg_payload(msg.id, txt)
-            di.database.msgQueries.transaction {
+            db.msgQueries.transaction {
                 afterCommit {
                     println("[*] addMsg > commit")
                 }
-                di.database.msgQueries.insert(msg)
-                di.database.msgQueries.insertPayload(msgPayload)
+                db.msgQueries.insert(msg)
+                db.msgQueries.insertPayload(msgPayload)
             }
         }
     }

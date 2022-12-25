@@ -10,10 +10,6 @@ interface OpiaChats {
 
     val events: Flow<Event>
 
-    fun logout()
-
-    fun onBackClicked()
-
     fun onChatClicked(peerId: UUID)
 
     fun continueToChat(selfId: UUID, peerId: UUID)
@@ -30,13 +26,11 @@ interface OpiaChats {
     )
 
     sealed class Event {
-        object LoggedOut : Event()
         object SearchFinished : Event()
         data class ChatOpened(val selfId: UUID, val peerId: UUID) : Event()
     }
 
     sealed class Output {
-        object Back : Output()
         data class Selected(val selfId: UUID, val peerId: UUID) : Output()
     }
 }

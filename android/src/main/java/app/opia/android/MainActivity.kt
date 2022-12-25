@@ -1,5 +1,6 @@
 package app.opia.android
 
+import DefaultDispatchers
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
         componentContext = componentContext,
         storeFactory = LoggingStoreFactory(TimeTravelStoreFactory()),
-        di = ServiceLocator(DriverFactory(context = this))
+        di = ServiceLocator(DriverFactory(context = this)),
+        DefaultDispatchers
     )
 }

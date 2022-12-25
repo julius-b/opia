@@ -1,7 +1,12 @@
 # Opia
 
-## End-to-End encrypted chat
+## Features
+### End-to-End encrypted chat
 - Using [Nikea](https://github.com/julius-b/nikea-kt) handshakes.
+
+## App Design
+- Kotlin Multiplatform: Android & Desktop support
+- MVI Pattern using [MVIKotlin](https://arkivanov.github.io/MVIKotlin/)
 
 ## TODO
 - DI

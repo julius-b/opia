@@ -1,6 +1,7 @@
 package app.opia.common.ui.chats
 
 import OpiaDispatchers
+import androidx.compose.runtime.Composable
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.chats.OpiaChats.*
 import app.opia.common.ui.chats.store.ChatsStore.*
@@ -34,14 +35,6 @@ class ChatsComponent(
 
     override val events: Flow<Event> = store.labels.map(transform = labelToEvent)
 
-    override fun logout() {
-        store.accept(Intent.Logout)
-    }
-
-    override fun onBackClicked() {
-        output(Output.Back)
-    }
-
     override fun onChatClicked(peerId: UUID) {
         store.accept(Intent.OpenChat(peerId))
     }
@@ -67,7 +60,6 @@ internal val stateToModel: (State) -> Model = {
 
 internal val labelToEvent: (Label) -> Event = {
     when (it) {
-        is Label.LoggedOut -> Event.LoggedOut
         is Label.SearchFinished -> Event.SearchFinished
         is Label.ChatOpened -> Event.ChatOpened(it.selfId, it.peerId)
     }

@@ -33,7 +33,7 @@ internal class ChatsStoreProvider(
 
     fun provide(): ChatsStore =
         object : ChatsStore, Store<Intent, State, Label> by storeFactory.create(
-            name = "OpiaChatsStore",
+            name = "ChatsStore",
             initialState = State(),
             bootstrapper = SimpleBootstrapper(Unit),
             executorFactory = ::ExecutorImpl,
@@ -99,7 +99,6 @@ internal class ChatsStoreProvider(
                         val peer = di.actorRepo.getActor(link.peer_id)
                         if (peer == null) {
                             println("[!] ChatsStore > logging out...")
-                            logout()
                             return@collect
                         }
                         ChatsItem(link.peer_id, peer.name, "@${peer.handle} / ${peer.desc}")
@@ -110,7 +109,6 @@ internal class ChatsStoreProvider(
         }
 
         override fun executeIntent(intent: Intent, getState: () -> State) = when (intent) {
-            is Intent.Logout -> logout()
             is Intent.SetSearchQuery -> dispatch(Msg.SearchQueryChanged(intent.query))
             is Intent.Search -> search(getState())
             is Intent.OpenChat -> openChat(intent.id)
@@ -138,13 +136,6 @@ internal class ChatsStoreProvider(
                 )
                 dispatch(Msg.SearchQueryChanged(""))
                 publish(Label.SearchFinished)
-            }
-        }
-
-        private fun logout() {
-            scope.launch {
-                di.actorRepo.logout()
-                publish(Label.LoggedOut)
             }
         }
 
