@@ -7,9 +7,14 @@ import com.arkivanov.mvikotlin.core.store.Store
 
 interface SettingsStore : Store<Intent, State, Nothing> {
     sealed class Intent {
+        data class SetName(val name: String) : Intent()
+        data class SetDesc(val desc: String) : Intent()
+        object UpdateAccount : Intent()
     }
 
     data class State(
-        val self: Actor? = null
+        val self: Actor? = null,
+        val name: String = "",
+        val desc: String = ""
     )
 }

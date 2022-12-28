@@ -24,6 +24,9 @@ interface ActorApi {
     @GET("actor")
     suspend fun list(): PlainApiSuccess<List<Actor>>
 
+    @PATCH("actor")
+    suspend fun patch(@Body params: PatchActorParams): PlainApiSuccess<Actor>
+
     @GET("actor/{id}")
     suspend fun getUnauthenticated(
         @Header(Authorization) authorization: String, @Path("id") id: UUID

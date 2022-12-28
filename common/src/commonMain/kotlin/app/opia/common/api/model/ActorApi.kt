@@ -30,6 +30,13 @@ data class PatchOwnedFieldParams(
     val verification_code: String
 )
 
+data class PatchActorParams(
+    val name: String? = null,
+    val desc: String? = null,
+    val profile_id: UUID? = null,
+    val banner_id: UUID? = null
+)
+
 data class AuthHints(
     val owned_fields: Array<Owned_field>
 )

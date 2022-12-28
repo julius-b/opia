@@ -3,13 +3,12 @@ package app.opia.common.ui.settings
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.home.AppComponentContext
-import com.arkivanov.decompose.value.Value
-import app.opia.common.ui.settings.store.SettingsStoreProvider
-import com.arkivanov.decompose.ComponentContext
 import app.opia.common.ui.settings.OpiaSettings.Model
 import app.opia.common.ui.settings.store.SettingsStore.Intent
 import app.opia.common.ui.settings.store.SettingsStore.State
+import app.opia.common.ui.settings.store.SettingsStoreProvider
 import app.opia.common.utils.asValue
+import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
@@ -24,11 +23,27 @@ class SettingsComponent(
 ) : OpiaSettings, AppComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         SettingsStoreProvider(
-            storeFactory = storeFactory, di = di, dispatchers = dispatchers, selfId = selfId
+            componentContext = componentContext,
+            storeFactory = storeFactory,
+            di = di,
+            dispatchers = dispatchers,
+            selfId = selfId
         ).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)
+
+    override fun onNameChanged(name: String) {
+        store.accept(Intent.SetName(name))
+    }
+
+    override fun onDescChanged(desc: String) {
+        store.accept(Intent.SetDesc(desc))
+    }
+
+    override fun updateClicked() {
+        store.accept(Intent.UpdateAccount)
+    }
 
     override suspend fun logoutClicked() {
         logout()
@@ -37,6 +52,6 @@ class SettingsComponent(
 
 internal val stateToModel: (State) -> Model = {
     Model(
-        self = it.self
+        self = it.self, name = it.name, desc = it.desc
     )
 }

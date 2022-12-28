@@ -7,9 +7,17 @@ interface OpiaSettings {
 
     val models: Value<Model>
 
+    fun onNameChanged(name: String)
+
+    fun onDescChanged(desc: String)
+
+    fun updateClicked()
+
     suspend fun logoutClicked()
 
     data class Model(
-        val self: Actor?
+        val self: Actor?,
+        val name: String,
+        val desc: String
     )
 }

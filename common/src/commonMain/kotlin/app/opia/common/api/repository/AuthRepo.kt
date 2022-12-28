@@ -73,7 +73,7 @@ class AuthRepo(
         // internet/other failure still possible - user needs to try again, a new session is created
         val actorRes = api.getUnauthenticated(authHeader, authSession.actor_id)
         if (actorRes !is NetworkResponse.ApiSuccess) {
-            println("[!] ActorRepo > login > get-actor > bad res: $actorRes")
+            println("[!] AuthRepo > login > get-actor > bad res: $actorRes")
             return NetworkResponse.UnknownError()
         }
         val actor = actorRes.body.data
@@ -87,8 +87,8 @@ class AuthRepo(
 
         // ensure actor is available in db when session is queries
         db.transaction {
-            afterCommit { println("[+] ActorRepo > login > committed") }
-            afterRollback { println("[!] ActorRepo > login > rollback") }
+            afterCommit { println("[+] AuthRepo > login > committed") }
+            afterRollback { println("[!] AuthRepo > login > rollback") }
 
             db.vaultKeyQueries.insert(vaultKey)
             db.sessionQueries.insert(authSession)
@@ -116,8 +116,8 @@ class AuthRepo(
         if (res !is NetworkResponse.ApiSuccess) return res
 
         db.transaction {
-            afterCommit { println("[*] ActorRepo > register > committed") }
-            afterRollback { println("[!] ActorRepo > register > rollback") }
+            afterCommit { println("[*] AuthRepo > register > committed") }
+            afterRollback { println("[!] AuthRepo > register > rollback") }
             db.actorQueries.insert(res.body.data)
             for (ownedField in res.body.hints!!.owned_fields) {
                 db.ownedFieldQueries.insert(ownedField)
@@ -184,8 +184,8 @@ class AuthRepo(
 
     fun logout() {
         db.transaction {
-            afterCommit { println("[*] ActorRepo > logout > committed") }
-            afterRollback { println("[!] ActorRepo > logout > rollback") }
+            afterCommit { println("[*] AuthRepo > logout > committed") }
+            afterRollback { println("[!] AuthRepo > logout > rollback") }
             db.msgQueries.truncateReceiptSyncStatus()
             db.msgQueries.truncateReceipts()
             db.msgQueries.truncatePayloads()

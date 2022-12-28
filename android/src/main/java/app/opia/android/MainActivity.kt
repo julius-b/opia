@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
         componentContext = componentContext,
         storeFactory = LoggingStoreFactory(TimeTravelStoreFactory()),
-        di = ServiceLocator(DriverFactory(context = this)),
+        di = ServiceLocator(DriverFactory(context = this), DefaultDispatchers),
         DefaultDispatchers
     )
 }

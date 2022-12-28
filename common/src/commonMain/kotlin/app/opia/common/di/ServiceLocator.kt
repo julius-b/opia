@@ -1,5 +1,6 @@
 package app.opia.common.di
 
+import OpiaDispatchers
 import app.opia.common.api.RetrofitClient
 import app.opia.common.api.repository.AuthRepo
 import app.opia.common.api.repository.InstallationRepo
@@ -10,7 +11,7 @@ import retrofit2.Retrofit
 
 // TODO use Koin
 // Only provides unauthenticated repositories
-class ServiceLocator(driverFactory: DriverFactory) {
+class ServiceLocator(driverFactory: DriverFactory, val dispatchers: OpiaDispatchers) {
     val database = createDatabase(driverFactory)
     private val okHttpClient: OkHttpClient = RetrofitClient.newOkHttpClient(this) {}
     private val retrofitClient: Retrofit = RetrofitClient.newRetrofitClient(okHttpClient)

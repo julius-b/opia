@@ -44,6 +44,6 @@ fun main() {
 private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
     componentContext = componentContext,
     storeFactory = DefaultStoreFactory(),
-    di = ServiceLocator(DriverFactory()),
+    di = ServiceLocator(DriverFactory(), DefaultDispatchers),
     dispatchers = DefaultDispatchers
 )

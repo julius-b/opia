@@ -51,6 +51,8 @@ internal class HomeStoreProvider(
             scope.launch {
                 val self = db.actorQueries.getById(selfId).asFlow().mapToOne().first()
                 dispatch(Msg.SelfUpdated(self))
+            }.invokeOnCompletion {
+                println("[~] Home > done")
             }
         }
     }
