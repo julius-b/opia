@@ -1,11 +1,15 @@
 package app.opia.common.ui.chats
 
 import OpiaDispatchers
-import androidx.compose.runtime.Composable
+import app.opia.common.api.endpoint.MessagingApi
+import app.opia.common.api.repository.ActorRepo
+import app.opia.common.api.repository.KeyRepo
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.chats.OpiaChats.*
 import app.opia.common.ui.chats.store.ChatsStore.*
 import app.opia.common.ui.chats.store.ChatsStoreProvider
+import app.opia.common.ui.home.AppComponentContext
+import app.opia.common.ui.home.OpiaHome.HomeModel
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
 import com.arkivanov.decompose.ComponentContext
@@ -18,16 +22,20 @@ import kotlinx.coroutines.flow.map
 import java.util.*
 
 class ChatsComponent(
-    componentContext: ComponentContext,
+    componentContext: AppComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
     dispatchers: OpiaDispatchers,
-    private val selfId: UUID,
+    private val mainModel: Value<HomeModel>,
     private val output: (Output) -> Unit
 ) : OpiaChats, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         ChatsStoreProvider(
-            storeFactory = storeFactory, di = di, dispatchers = dispatchers, selfId = selfId
+            componentContext = componentContext,
+            storeFactory = storeFactory,
+            di = di,
+            dispatchers = dispatchers,
+            mainModel = mainModel
         ).provide()
     }
 
@@ -39,8 +47,8 @@ class ChatsComponent(
         store.accept(Intent.OpenChat(peerId))
     }
 
-    override fun continueToChat(selfId: UUID, peerId: UUID) {
-        output(Output.Selected(selfId, peerId))
+    override fun continueToChat(peerId: UUID) {
+        output(Output.Selected(peerId))
     }
 
     override fun onSearchUpdated(query: String) {
@@ -61,6 +69,6 @@ internal val stateToModel: (State) -> Model = {
 internal val labelToEvent: (Label) -> Event = {
     when (it) {
         is Label.SearchFinished -> Event.SearchFinished
-        is Label.ChatOpened -> Event.ChatOpened(it.selfId, it.peerId)
+        is Label.ChatOpened -> Event.ChatOpened(it.peerId)
     }
 }

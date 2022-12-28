@@ -36,7 +36,7 @@ fun ChatsContent(component: OpiaChats) {
             component.events.collect {
                 when (it) {
                     is Event.SearchFinished -> showSearch = false
-                    is Event.ChatOpened -> component.continueToChat(it.selfId, it.peerId)
+                    is Event.ChatOpened -> component.continueToChat(it.peerId)
                 }
             }
         }

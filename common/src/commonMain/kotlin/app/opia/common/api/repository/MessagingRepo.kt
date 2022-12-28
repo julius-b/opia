@@ -1,7 +1,7 @@
 package app.opia.common.api.repository
 
 import app.opia.common.api.endpoint.MessagingApi
-import app.opia.common.di.ServiceLocator
+import app.opia.db.OpiaDatabase
 
 // TODO int32 bitmap might be better
 enum class LinkPerm {
@@ -10,7 +10,7 @@ enum class LinkPerm {
 
 // TODO move some ChatSync duplicates here, like encrypt & upload msg
 class MessagingRepo(
-    private val di: ServiceLocator, private val api: MessagingApi
+    private val db: OpiaDatabase, val api: MessagingApi
 ) {
 
 }

@@ -7,6 +7,8 @@ interface OpiaSettings {
 
     val models: Value<Model>
 
+    suspend fun logoutClicked()
+
     data class Model(
         val self: Actor?
     )

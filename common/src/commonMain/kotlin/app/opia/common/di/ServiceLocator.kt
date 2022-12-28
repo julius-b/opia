@@ -1,21 +1,25 @@
 package app.opia.common.di
 
 import app.opia.common.api.RetrofitClient
-import app.opia.common.api.repository.ActorRepo
+import app.opia.common.api.repository.AuthRepo
 import app.opia.common.api.repository.InstallationRepo
-import app.opia.common.api.repository.KeyRepo
 import app.opia.common.db.DriverFactory
 import app.opia.common.db.createDatabase
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
 
 // TODO use Koin
+// Only provides unauthenticated repositories
 class ServiceLocator(driverFactory: DriverFactory) {
     val database = createDatabase(driverFactory)
-    val okHttpClient = RetrofitClient.newOkHttpClient(this)
-    val retrofitClient = RetrofitClient.newRetrofitClient(okHttpClient)
+    private val okHttpClient: OkHttpClient = RetrofitClient.newOkHttpClient(this) {}
+    private val retrofitClient: Retrofit = RetrofitClient.newRetrofitClient(okHttpClient)
     val installationRepo = InstallationRepo(
         database.installationQueries, RetrofitClient.newInstallationService(retrofitClient)
     )
-    val keyRepo = KeyRepo(this, RetrofitClient.newKeyService(retrofitClient))
-    val actorRepo = ActorRepo(this, RetrofitClient.newActorService(retrofitClient))
-    val messagingService = RetrofitClient.newMessagingService(retrofitClient)
+    val authRepo = AuthRepo(
+        database,
+        RetrofitClient.newActorService(retrofitClient),
+        RetrofitClient.newKeyService(retrofitClient)
+    )
 }

@@ -2,8 +2,10 @@ package app.opia.common.sync
 
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
+import app.opia.common.api.endpoint.MessagingApi
 import app.opia.common.api.hasErr
 import app.opia.common.api.model.*
+import app.opia.common.api.repository.KeyRepo
 import app.opia.common.api.repository.LinkPerm
 import app.opia.common.db.Actor_link
 import app.opia.common.db.Auth_session
@@ -30,7 +32,10 @@ data class ActiveHandshake(
 
 @OptIn(ExperimentalUnsignedTypes::class)
 class ChatSync(
-    private val di: ServiceLocator, private val sess: Auth_session
+    private val di: ServiceLocator,
+    private val keyRepo: KeyRepo,
+    private val msgApi: MessagingApi,
+    private val sess: Auth_session
 ) {
     private val db = di.database
     private val activeHandshakes = mutableMapOf<UUID, ActiveHandshake>()
@@ -38,7 +43,7 @@ class ChatSync(
     // TODO move some code to MessageRepository, etc.
     // TODO handle server errors: skex expired, etc.
     suspend fun sync() {
-        if (!di.keyRepo.syncKeys(sess)) {
+        if (!keyRepo.syncKeys(sess)) {
             println("[!] Sync > key sync failed, bailing...")
             return
         }
@@ -65,7 +70,7 @@ class ChatSync(
     // decrypt all messages using the handshakes available
     private suspend fun receiveMessages(): Boolean {
         // doesn't return own because it's already 'read' -- couldn't decrypt it anyway, need 2 different hs states for one ioid
-        val listRes = di.messagingService.list()
+        val listRes = msgApi.list()
         if (listRes !is NetworkResponse.ApiSuccess) {
             println("[!] Sync > rx > unexpected list err: $listRes")
             return false
@@ -104,7 +109,7 @@ class ChatSync(
                 hs = activeHandshakes[peerIO]!!
             } else {
                 println("[*] Sync > rx [$peerIO/$hsId] > hs not currently active, querying...")
-                val hsRes = di.messagingService.getHandshake(hsId)
+                val hsRes = msgApi.getHandshake(hsId)
                 when (hsRes) {
                     is NetworkResponse.ApiSuccess -> {
                         val apiHandshake = hsRes.body.data
@@ -208,7 +213,7 @@ class ChatSync(
                 db.msgQueries.getReceipt(syncStatus.msg_id, syncStatus.rcpt_ioid, syncStatus.dup)
                     .asFlow().mapToOne().first()
             assert(rcpt.hs_id != null) // only server creates rcpt with hs_id = null
-            val createRcptRes = di.messagingService.createMsgReceipt(rcpt)
+            val createRcptRes = msgApi.createMsgReceipt(rcpt)
             if (createRcptRes !is NetworkResponse.ApiSuccess) {
                 println("[!] Sync > rcpts > create rcpt ${rcpt.msg_id}: $createRcptRes")
                 return false
@@ -222,7 +227,7 @@ class ChatSync(
         //val updated = db.msgQueries.listOutstandingReceipts()
 
         // receipts updated by peers
-        val receiptsRes = di.messagingService.listUpdatedReceipts()
+        val receiptsRes = msgApi.listUpdatedReceipts()
         if (receiptsRes !is NetworkResponse.ApiSuccess) {
             println("[!] Sync > rcpts > list rcpts: $receiptsRes")
             return false
@@ -234,7 +239,9 @@ class ChatSync(
             for ((dup, updsForDup) in upds.groupBy { it.dup }) {
                 val u = updsForDup.maxBy { it.created_at }
                 db.msgQueries.upsertReceipt(
-                    Msg_rcpt(msgId, u.rcpt_ioid, dup, u.hs_id, u.cause, u.recv_at, u.rjct_at, u.read_at)
+                    Msg_rcpt(
+                        msgId, u.rcpt_ioid, dup, u.hs_id, u.cause, u.recv_at, u.rjct_at, u.read_at
+                    )
                 )
                 // delete updates in order (ensure oldest is deleted before newest is deleted)
 
@@ -244,7 +251,7 @@ class ChatSync(
                         println("[~] Sync > rcpts > got rjct, deleting active handshake: ${upd.hs_id}")
                         activeHandshakes.remove(upd.rcpt_ioid)
                     }
-                    val delRes = di.messagingService.deleteReceiptUpdate(
+                    val delRes = msgApi.deleteReceiptUpdate(
                         DeleteReceiptUpdate(msgId, u.rcpt_ioid, dup, upd.created_at)
                     )
                     if (delRes is NetworkResponse.ApiSuccess) {
@@ -260,7 +267,7 @@ class ChatSync(
     }
 
     private suspend fun uploadRejectedMessages(): Boolean {
-        val outstandingRes = di.messagingService.listOutstandingMsgs()
+        val outstandingRes = msgApi.listOutstandingMsgs()
         if (outstandingRes !is NetworkResponse.ApiSuccess) {
             println("[!] Sync > rjcts > query outstanding: $outstandingRes")
             return false
@@ -280,7 +287,7 @@ class ChatSync(
             println("[*] Sync > rjcts [${rjct.msg_id} -> $rcptIO] > re-encrypting msg for peer...")
             if (activeHandshakes[rcptIO] == null) {
                 println("[*] Sync > rjcts [${rjct.msg_id} -> $rcptIO] > +hs > no active handshake, initiating...")
-                val hsRes = di.messagingService.createHandshake(CreateHandshakeParams(rcptIO))
+                val hsRes = msgApi.createHandshake(CreateHandshakeParams(rcptIO))
                 if (hsRes !is NetworkResponse.ApiSuccess) {
                     println("[!] Sync > rjcts [${rjct.msg_id} -> $rcptIO] > +hs > failed to open handshake")
                     if (hsRes is NetworkResponse.ApiError) {
@@ -319,7 +326,7 @@ class ChatSync(
                 seqno = hs.hs.tx.n.toLong() - 1L,
                 enc64
             )
-            val createMsgPacketRes = di.messagingService.createMsgPacket(msg.id, p)
+            val createMsgPacketRes = msgApi.createMsgPacket(msg.id, p)
             if (createMsgPacketRes !is NetworkResponse.ApiSuccess) {
                 println("[!] Sync > rjcts [$rcptIO] > create packet failed")
                 break
@@ -340,7 +347,7 @@ class ChatSync(
         for (msg in unsynced) {
             println("[*] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > preparing msg: '${msg.payload}'")
             // TODO don't query IOs every time if rcpt is the same...
-            val rcptIOsRes = di.messagingService.listIOs(msg.rcpt_id)
+            val rcptIOsRes = msgApi.listIOs(msg.rcpt_id)
             if (rcptIOsRes !is NetworkResponse.ApiSuccess) {
                 println("[!] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > listing peer's IOs failed: $rcptIOsRes")
                 return false
@@ -350,15 +357,21 @@ class ChatSync(
             println("[+] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > peer IOs (#${rcptIOs.size}): $rcptIOs")
 
             val packets = mutableListWithCap<ApiMsgPacket>(rcptIOs.size)
-            rcptIO@for ((rcptIdx, rcptIO) in rcptIOs.withIndex()) {
-                println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > active hs: ${activeHandshakes.get(rcptIO)?.meta?.id}")
+            rcptIO@ for ((rcptIdx, rcptIO) in rcptIOs.withIndex()) {
+                println(
+                    "[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > active hs: ${
+                        activeHandshakes.get(
+                            rcptIO
+                        )?.meta?.id
+                    }"
+                )
                 if (!activeHandshakes.containsKey(rcptIO)) {
                     if (!keyed.contains(rcptIO)) {
                         println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > peer has no keys, skipping...")
                         continue@rcptIO
                     }
                     println("[*] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > no active handshake, initiating...")
-                    val hsRes = di.messagingService.createHandshake(CreateHandshakeParams(rcptIO))
+                    val hsRes = msgApi.createHandshake(CreateHandshakeParams(rcptIO))
                     when (hsRes) {
                         is NetworkResponse.NetworkError -> {
                             println("[~] Sync > tx [-> ${msg.rcpt_id}/$rcptIdx] > +hs > no network, aborting tx...")
@@ -414,7 +427,7 @@ class ChatSync(
             }
             println("[+] Sync > tx [+${msg.id} -> ${msg.rcpt_id}] > packets: #${packets.size}")
 
-            val msgRes = di.messagingService.create(CreateMsgParams(msg.id, msg.rcpt_id, packets))
+            val msgRes = msgApi.create(CreateMsgParams(msg.id, msg.rcpt_id, packets))
             when (msgRes) {
                 is NetworkResponse.ApiSuccess -> {
                     val body = msgRes.body.data
@@ -443,7 +456,7 @@ class ChatSync(
             db.vaultKeyQueries.get(sess.actor_id, sess.secret_update_id).asFlow().mapToOne().first()
 
         // list outstanding backups
-        val outstandingRes = di.messagingService.listOutstandingMsgBackups()
+        val outstandingRes = msgApi.listOutstandingMsgBackups()
         if (outstandingRes !is NetworkResponse.ApiSuccess) {
             println("[!] Sync > bckps > unexpected list err: $outstandingRes")
             return false
@@ -463,7 +476,7 @@ class ChatSync(
             val enc64 = (nonce + enc).toByteArray().toBase64()
             println("[+] Sync > bckps > enc: $enc64")
 
-            val createRes = di.messagingService.createMsgBackup(
+            val createRes = msgApi.createMsgBackup(
                 CreateMsgBackup(
                     msg.id, vaultKey.id, enc64
                 )
@@ -498,7 +511,7 @@ class ChatSync(
         val re = (if (isInitiator) hs.responder_ekey else hs.initiator_ekey)!!
 
         println("[*] Sync > +hs [$role] > querying remote identity...")
-        val identityRes = di.messagingService.getIdentity(peer)
+        val identityRes = msgApi.getIdentity(peer)
         when (identityRes) {
             is NetworkResponse.ApiError, is NetworkResponse.UnknownError -> {
                 println("[!] Sync > +hs [$role] > ri > unexpected err: $identityRes")
@@ -529,10 +542,10 @@ class ChatSync(
     }
 
     companion object Factory {
-        suspend fun init(di: ServiceLocator): ChatSync {
+        suspend fun init(di: ServiceLocator, keyRepo: KeyRepo, msgApi: MessagingApi): ChatSync {
             val authSession = di.database.sessionQueries.getLatest().asFlow().mapToOne().first()
 
-            return ChatSync(di, authSession)
+            return ChatSync(di, keyRepo, msgApi, authSession)
         }
     }
 }

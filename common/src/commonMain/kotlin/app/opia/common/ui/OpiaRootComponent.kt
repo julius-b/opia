@@ -6,6 +6,8 @@ import app.opia.common.ui.auth.AuthComponent
 import app.opia.common.ui.auth.OpiaAuth
 import app.opia.common.ui.auth.registration.OpiaRegistration
 import app.opia.common.ui.auth.registration.RegistrationComponent
+import app.opia.common.ui.home.AppComponentContext
+import app.opia.common.ui.home.DefaultAppComponentContext
 import app.opia.common.ui.home.HomeComponent
 import app.opia.common.ui.home.OpiaHome
 import app.opia.common.ui.splash.OpiaSplash
@@ -16,15 +18,17 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import com.arkivanov.mvikotlin.core.store.StoreFactory
+import kotlinx.coroutines.withContext
 import java.util.*
 
-// TODO consider making these callbacks async by using a Channel or sth (like prev. Consumer)
 class OpiaRootComponent internal constructor(
     componentContext: ComponentContext,
+    private val di: ServiceLocator,
+    private val dispatchers: OpiaDispatchers,
     private val splash: (ComponentContext, (OpiaSplash.Output) -> Unit) -> OpiaSplash,
     private val auth: (ComponentContext, (OpiaAuth.Output) -> Unit) -> OpiaAuth,
     private val registration: (ComponentContext, (OpiaRegistration.Output) -> Unit) -> OpiaRegistration,
-    private val home: (ComponentContext, selfId: UUID) -> OpiaHome // TODO output logged out?
+    private val home: (AppComponentContext, selfId: UUID) -> OpiaHome
 ) : OpiaRoot, ComponentContext by componentContext {
 
     constructor(
@@ -32,39 +36,45 @@ class OpiaRootComponent internal constructor(
         storeFactory: StoreFactory,
         di: ServiceLocator,
         dispatchers: OpiaDispatchers
-    ) : this(componentContext = componentContext, splash = { childContext, output ->
-        SplashComponent(
-            componentContext = childContext,
-            storeFactory = storeFactory,
-            di = di,
-            dispatchers = dispatchers,
-            output = output
-        )
-    }, auth = { childContext, output ->
-        AuthComponent(
-            componentContext = childContext,
-            storeFactory = storeFactory,
-            di = di,
-            dispatchers = dispatchers,
-            output = output
-        )
-    }, registration = { childContext, output ->
-        RegistrationComponent(
-            componentContext = childContext,
-            storeFactory = storeFactory,
-            dispatchers = dispatchers,
-            di = di,
-            output = output
-        )
-    }, home = { childContext, selfId ->
-        HomeComponent(
-            componentContext = childContext,
-            storeFactory = storeFactory,
-            dispatchers = dispatchers,
-            di = di,
-            selfId = selfId
-        )
-    })
+    ) : this(componentContext = componentContext,
+        di = di,
+        dispatchers = dispatchers,
+        splash = { childContext, output ->
+            SplashComponent(
+                componentContext = childContext,
+                storeFactory = storeFactory,
+                di = di,
+                dispatchers = dispatchers,
+                output = output
+            )
+        },
+        auth = { childContext, output ->
+            AuthComponent(
+                componentContext = childContext,
+                storeFactory = storeFactory,
+                di = di,
+                dispatchers = dispatchers,
+                output = output
+            )
+        },
+        registration = { childContext, output ->
+            RegistrationComponent(
+                componentContext = childContext,
+                storeFactory = storeFactory,
+                dispatchers = dispatchers,
+                di = di,
+                output = output
+            )
+        },
+        home = { childContext, selfId ->
+            HomeComponent(
+                componentContext = childContext,
+                storeFactory = storeFactory,
+                dispatchers = dispatchers,
+                di = di,
+                selfId = selfId
+            )
+        })
 
     private val navigation = StackNavigation<Configuration>()
 
@@ -90,8 +100,17 @@ class OpiaRootComponent internal constructor(
             registration(componentContext, ::onRegistrationOutput)
         )
         is Configuration.Home -> OpiaRoot.Child.Home(
-            home(componentContext, configuration.selfId)
+            home(
+                DefaultAppComponentContext(componentContext, di, ::logout), configuration.selfId
+            )
         )
+    }
+
+    // unauthorized responses caught by AuthInterceptor run in a custom OkHttp thread
+    private suspend fun logout() = withContext(dispatchers.main) {
+        println("[~] Root > logout > clearing db & returning to splash/auth...")
+        di.authRepo.logout()
+        navigation.replaceAll(Configuration.Splash)
     }
 
     // reset splash state by replacing it - on logout, it will requery the db again
@@ -104,7 +123,7 @@ class OpiaRootComponent internal constructor(
         // keep Auth
         is OpiaAuth.Output.Register -> navigation.push(Configuration.Registration)
         is OpiaAuth.Output.ContinueWithProvider -> {
-            println("[+] onAuthOutput > navigating to provider screen: ${output.provider}")
+            println("[+] Root > onAuthOutput > navigating to provider screen: ${output.provider}")
         }
         is OpiaAuth.Output.Authenticated -> navigation.replaceAll(Configuration.Home(output.selfId))
     }
@@ -117,10 +136,6 @@ class OpiaRootComponent internal constructor(
             navigation.replaceAll(Configuration.Home(output.selfId))
         }
         is OpiaRegistration.Output.BackToAuth -> navigation.pop()
-    }
-
-    private fun onHomeOutput(output: OpiaHome.Output) = when (output) {
-        is OpiaHome.Output.Back -> navigation.replaceAll(Configuration.Splash)
     }
 
     private sealed class Configuration : Parcelable {

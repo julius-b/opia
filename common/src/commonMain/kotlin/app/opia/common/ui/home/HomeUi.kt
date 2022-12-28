@@ -15,32 +15,26 @@ import app.opia.common.ui.home.OpiaHome.Child
 import app.opia.common.ui.navbar
 import app.opia.common.ui.settings.SettingsContent
 import com.arkivanov.decompose.extensions.compose.jetbrains.stack.Children
-import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.fade
-import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.plus
-import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.scale
+import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.slide
 import com.arkivanov.decompose.extensions.compose.jetbrains.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 
 @Composable
 fun HomeContent(component: OpiaHome) {
-    val activeIndex by component.activeChildIndex.subscribeAsState()
+    val activeChild by component.activeChild.subscribeAsState()
 
+    println("activeChild: $activeChild")
     Scaffold(topBar = {
-        TopAppBar(
-            title = {
-                when (activeIndex) {
-                    0 -> Text(text = "Messages")
-                    1 -> Text(text = "Settings")
-                }
-            },
+        if (!activeChild.isChild) TopAppBar(
+            title = { Text(navbar[activeChild.navIndex]) },
             backgroundColor = opiaBlue,
             contentColor = opiaGray
         )
     }, bottomBar = {
-        BottomNavigation {
+        if (!activeChild.isChild) BottomNavigation {
             navbar.forEachIndexed { k, v ->
                 BottomNavigationItem(
-                    selected = k == activeIndex,
+                    selected = k == activeChild.navIndex,
                     onClick = { component.onBarSelect(k) },
                     label = { Text(v) },
                     icon = {
@@ -55,11 +49,11 @@ fun HomeContent(component: OpiaHome) {
 }
 
 @Composable
-fun HomeBody(component: OpiaHome, modifier: Modifier) {
+fun HomeBody(component: OpiaHome, modifier: Modifier = Modifier) {
     Children(
         modifier = modifier,
         stack = component.childStack,
-        animation = stackAnimation(fade() + scale()),
+        animation = stackAnimation(slide()),
     ) {
         when (val child = it.instance) {
             is Child.Chats -> ChatsContent(child.component)

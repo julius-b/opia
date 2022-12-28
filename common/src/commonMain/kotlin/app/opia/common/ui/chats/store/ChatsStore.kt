@@ -23,6 +23,6 @@ interface ChatsStore : Store<Intent, State, Label> {
 
     sealed class Label {
         object SearchFinished : Label()
-        data class ChatOpened(val selfId: UUID, val peerId: UUID) : Label()
+        data class ChatOpened(val peerId: UUID) : Label()
     }
 }

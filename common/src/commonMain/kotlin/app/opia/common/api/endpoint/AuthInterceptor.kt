@@ -16,7 +16,7 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 
 internal class AuthInterceptor(
-    private val di: ServiceLocator
+    private val di: ServiceLocator, private val logout: suspend () -> Unit
 ) : Interceptor {
     // CoroutineScope(Dispatchers.IO).launch
     override fun intercept(chain: Interceptor.Chain) = runBlocking {
@@ -42,7 +42,7 @@ internal class AuthInterceptor(
             // exp - 5 < now: refresh TODO reset to 5
             if (exp.minus(1, ChronoUnit.MINUTES).isBefore(now)) {
                 println("[~] AuthInterceptor > refreshing...")
-                val res = di.actorRepo.api.refreshAuthSession("Bearer ${authSession.refresh_token}")
+                val res = di.authRepo.api.refreshAuthSession("Bearer ${authSession.refresh_token}")
                 when (res) {
                     is NetworkResponse.ApiSuccess -> {
                         authSession = res.body.data
@@ -60,8 +60,7 @@ internal class AuthInterceptor(
                     }
                 }
             }
-            if (authSession != null)
-                req.header(Authorization, "Bearer ${authSession.access_token}")
+            if (authSession != null) req.header(Authorization, "Bearer ${authSession.access_token}")
         }
 
         // test doing network stuff here on android (which thread are we on?)
@@ -69,8 +68,8 @@ internal class AuthInterceptor(
         val res = chain.proceed(req.build())
         if (res.code == 401) {
             // eg. {"code":"unauthenticated","errors":{"token":[{"code":"signature"}]}}
-            println("[!] AuthIntercept > expected token to be valid but got 'unauthenticated' - logging out...")
-            // TODO how to logout?
+            println("[!] AuthIntercept > logout > expected token to be valid but got 'unauthenticated'...")
+            logout()
         }
 
         res

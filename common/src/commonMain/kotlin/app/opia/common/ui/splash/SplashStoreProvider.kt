@@ -11,6 +11,7 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToOne
+import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,7 +50,7 @@ internal class SplashStoreProvider(
             scope.launch {
                 withContext(Dispatchers.IO) { ch.oxc.nikea.initCrypto() }
 
-                val sess = di.actorRepo.getLatestAuthSession()
+                val sess = di.database.sessionQueries.getLatest().asFlow().mapToOneOrNull().first()
 
                 // events published during executeAction are not received by consumers because
                 // flow collection hasn't yet started. The problem is mentioned in the docs.
@@ -63,7 +64,7 @@ internal class SplashStoreProvider(
                     dispatch(Msg.Next(OpiaSplash.Next.Main(self.id)))
                 } else {
                     // clear db
-                    di.actorRepo.logout()
+                    di.authRepo.logout()
                     publish(Label.Auth)
                     dispatch(Msg.Next(OpiaSplash.Next.Auth))
                 }

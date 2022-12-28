@@ -11,18 +11,17 @@ import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
+import java.util.*
 
 class InstallationRepo(
-    private val db: InstallationQueries,
-    private val api: InstallationApi
+    private val installationDB: InstallationQueries, val api: InstallationApi
 ) {
     private val mutex = Mutex()
 
     // server returns no usable errors
     suspend fun upsertInstallation(): Installation? = mutex.withLock {
         println("[*] upsert_install > syncing...")
-        var installation = db.getSelf().asFlow().mapToOneOrNull().first()
+        var installation = installationDB.getSelf().asFlow().mapToOneOrNull().first()
         println("[*] upsert_install > self: $installation")
         if (installation == null) {
             // NOTE: InetAddress causes exception on android, use expect/actual: withContext(Dispatchers.IO) { InetAddress.getLocalHost() }.hostName
@@ -31,7 +30,7 @@ class InstallationRepo(
             installation = Installation(
                 true, UUID.randomUUID(), hostname, "uh wee", os, "opia_kt_mpp/1"
             )
-            db.insert(installation)
+            installationDB.insert(installation)
             println("[+] upsert_install > saved: $installation")
         }
         println("[*] upsert_install > synchronizing...")

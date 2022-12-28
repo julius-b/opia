@@ -2,6 +2,7 @@ package app.opia.common.ui.settings
 
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.home.AppComponentContext
 import com.arkivanov.decompose.value.Value
 import app.opia.common.ui.settings.store.SettingsStoreProvider
 import com.arkivanov.decompose.ComponentContext
@@ -15,12 +16,12 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import java.util.*
 
 class SettingsComponent(
-    componentContext: ComponentContext,
+    componentContext: AppComponentContext,
     storeFactory: StoreFactory,
     di: ServiceLocator,
     dispatchers: OpiaDispatchers,
     selfId: UUID
-) : OpiaSettings, ComponentContext by componentContext {
+) : OpiaSettings, AppComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         SettingsStoreProvider(
             storeFactory = storeFactory, di = di, dispatchers = dispatchers, selfId = selfId
@@ -28,6 +29,10 @@ class SettingsComponent(
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)
+
+    override suspend fun logoutClicked() {
+        logout()
+    }
 }
 
 internal val stateToModel: (State) -> Model = {

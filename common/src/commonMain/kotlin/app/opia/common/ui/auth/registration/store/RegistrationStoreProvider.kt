@@ -103,7 +103,7 @@ internal class RegistrationStoreProvider(
                 val ownedFields = mutableListOf(state.phoneVerification)
                 state.emailVerification?.let { ownedFields.add(it) }
                 val res = withContext(Dispatchers.IO) {
-                    di.actorRepo.register(
+                    di.authRepo.register(
                         ActorTypeUser, state.handle, state.name, state.secret, ownedFields
                     )
                 }
@@ -121,7 +121,7 @@ internal class RegistrationStoreProvider(
                         // TODO should session res contain all active ownedFields? yes, for login!
                         // save session & actor
                         val asRes = withContext(Dispatchers.IO) {
-                            di.actorRepo.login(state.handle, state.secret)
+                            di.authRepo.login(state.handle, state.secret)
                         }
                         when (asRes) {
                             is NetworkResponse.ApiSuccess -> {
@@ -187,7 +187,7 @@ internal class RegistrationStoreProvider(
 
             scope.launch {
                 // validate ownedField
-                val res = di.actorRepo.patchOwnedField(
+                val res = di.authRepo.patchOwnedField(
                     state.phoneVerification.id, state.phoneVerification.verification_code
                 )
                 when (res) {
@@ -252,7 +252,7 @@ internal class RegistrationStoreProvider(
                 val ownedFieldResponses = mutableListOf<Owned_field>()
                 for (owned in ownedFieldRequests) {
                     val ownedRes = withContext(Dispatchers.IO) {
-                        di.actorRepo.createOwnedField(OwnedFieldScope.signup, owned.second)
+                        di.authRepo.createOwnedField(OwnedFieldScope.signup, owned.second)
                     }
                     println("[*] register > owned: $ownedRes")
                     when (ownedRes) {

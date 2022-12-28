@@ -62,7 +62,7 @@ internal class AuthStoreProvider(
 
                 // save session & actor
                 val authRes = withContext(dispatchers.io) {
-                    di.actorRepo.login(state.unique, state.secret)
+                    di.authRepo.login(state.unique, state.secret)
                 }
                 when (authRes) {
                     is NetworkResponse.ApiSuccess -> {

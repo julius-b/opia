@@ -8,6 +8,9 @@ import app.opia.common.di.ServiceLocator
 import app.opia.common.sync.ChatSync
 import app.opia.common.ui.chats.ChatsItem
 import app.opia.common.ui.chats.store.ChatsStore.*
+import app.opia.common.ui.home.AppComponentContext
+import app.opia.common.ui.home.OpiaHome.HomeModel
+import com.arkivanov.decompose.value.Value
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
@@ -24,12 +27,16 @@ import java.util.*
 import kotlin.system.exitProcess
 
 internal class ChatsStoreProvider(
+    componentContext: AppComponentContext,
     private val storeFactory: StoreFactory,
     private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
-    private val selfId: UUID
+    private val mainModel: Value<HomeModel>
 ) {
     private val db = di.database
+    private val keyRepo = componentContext.keyRepo
+    private val actorRepo = componentContext.actorRepo
+    private val msgApi = componentContext.messagingRepo.api
 
     fun provide(): ChatsStore =
         object : ChatsStore, Store<Intent, State, Label> by storeFactory.create(
@@ -58,7 +65,7 @@ internal class ChatsStoreProvider(
                 exitProcess(-1)
             }) {
                 val id = UUID.randomUUID()
-                val chatSync = withContext(Dispatchers.IO) { ChatSync.init(di) }
+                val chatSync = withContext(Dispatchers.IO) { ChatSync.init(di, keyRepo, msgApi) }
                 while (true) {
                     println("[*] ChatSync [$id] > syncing...")
                     // check if logout occurred...
@@ -74,13 +81,14 @@ internal class ChatsStoreProvider(
             }
 
             scope.launch {
-                println("[*] ChatsStore > querying user info...")
-                val authSession = withContext(Dispatchers.IO) {
-                    db.sessionQueries.getLatest().asFlow().mapToOne().first()
-                }
-                println("[*] ChatsStore > authSession: $authSession")
-                val self = withContext(Dispatchers.IO) {
-                    db.actorQueries.getById(authSession.actor_id).asFlow().mapToOne().first()
+                // TODO maybe don't poll... idk just an idea
+                val self: Actor
+                //mainModel.observe()
+                while (true) {
+                    delay(100L)
+                    if (mainModel.value.self == null) return@launch
+                    self = mainModel.value.self!!
+                    break
                 }
                 println("[*] ChatsStore > actor: $self")
                 dispatch(Msg.SelfUpdated(self))
@@ -89,16 +97,16 @@ internal class ChatsStoreProvider(
                 }
                 println("[*] ChatsStore > ownedFields: $ownedFields")
 
-                di.actorRepo.listLinks()
+                actorRepo.listLinks()
 
                 // refresh when db refreshes - maybe listLinks should return a Flow
                 db.actorQueries.listLinksForActor(self.id).asFlow().mapToList().collect {
                     val chats = it.map { link ->
                         // TODO get latest msg per chat
                         // actor should exist in db, only time this returns null is if unauthenticated
-                        val peer = di.actorRepo.getActor(link.peer_id)
+                        val peer = actorRepo.getActor(link.peer_id)
                         if (peer == null) {
-                            println("[!] ChatsStore > logging out...")
+                            println("[!] ChatsStore > failed to query peer: ${link.peer_id}")
                             return@collect
                         }
                         ChatsItem(link.peer_id, peer.name, "@${peer.handle} / ${peer.desc}")
@@ -117,18 +125,18 @@ internal class ChatsStoreProvider(
 
         private fun search(state: State) {
             scope.launch {
-                val peer = di.actorRepo.getActorByHandle(state.searchQuery)
+                val peer = actorRepo.getActorByHandle(state.searchQuery)
                 if (peer == null) {
                     dispatch(Msg.SearchErrorChanged("User not found :["))
                     return@launch
                 }
                 db.actorQueries.insertLink(
                     Actor_link(
-                        selfId,
+                        state.self!!.id,
                         peer.id,
                         LinkPerm.isAdmin.ordinal.toLong(),
                         ZonedDateTime.now(),
-                        selfId,
+                        state.self.id,
                         null,
                         null,
                         null
@@ -144,7 +152,7 @@ internal class ChatsStoreProvider(
                 val peer = withContext(Dispatchers.IO) {
                     db.actorQueries.getById(id).asFlow().mapToOne().first()
                 }
-                publish(Label.ChatOpened(selfId, peer.id))
+                publish(Label.ChatOpened(peer.id))
             }
         }
 

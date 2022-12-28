@@ -12,7 +12,7 @@ interface OpiaChats {
 
     fun onChatClicked(peerId: UUID)
 
-    fun continueToChat(selfId: UUID, peerId: UUID)
+    fun continueToChat(peerId: UUID)
 
     fun onSearchUpdated(query: String)
 
@@ -27,10 +27,10 @@ interface OpiaChats {
 
     sealed class Event {
         object SearchFinished : Event()
-        data class ChatOpened(val selfId: UUID, val peerId: UUID) : Event()
+        data class ChatOpened(val peerId: UUID) : Event()
     }
 
     sealed class Output {
-        data class Selected(val selfId: UUID, val peerId: UUID) : Output()
+        data class Selected(val peerId: UUID) : Output()
     }
 }

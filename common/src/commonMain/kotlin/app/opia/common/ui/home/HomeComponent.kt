@@ -7,9 +7,13 @@ import app.opia.common.ui.chats.OpiaChats
 import app.opia.common.ui.chats.chat.ChatComponent
 import app.opia.common.ui.chats.chat.OpiaChat
 import app.opia.common.ui.home.OpiaHome.Child
+import app.opia.common.ui.home.OpiaHome.HomeModel
+import app.opia.common.ui.home.store.HomeStore
+import app.opia.common.ui.home.store.HomeStoreProvider
 import app.opia.common.ui.settings.OpiaSettings
 import app.opia.common.ui.settings.SettingsComponent
-import com.arkivanov.decompose.ComponentContext
+import app.opia.common.utils.asValue
+import app.opia.common.utils.getStore
 import com.arkivanov.decompose.router.stack.*
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
@@ -19,30 +23,38 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import java.util.*
 
 class HomeComponent(
-    componentContext: ComponentContext,
+    componentContext: AppComponentContext,
+    storeFactory: StoreFactory,
+    di: ServiceLocator,
+    dispatchers: OpiaDispatchers,
     private val selfId: UUID,
-    private val chats: (ComponentContext, (OpiaChats.Output) -> Unit) -> OpiaChats,
-    private val chat: (ComponentContext, peerId: UUID, (OpiaChat.Output) -> Unit) -> OpiaChat,
-    private val settings: (ComponentContext) -> OpiaSettings
-) : OpiaHome, ComponentContext by componentContext {
+    private val chats: (AppComponentContext, Value<HomeModel>, (OpiaChats.Output) -> Unit) -> OpiaChats,
+    private val chat: (AppComponentContext, peerId: UUID, (OpiaChat.Output) -> Unit) -> OpiaChat,
+    private val settings: (AppComponentContext) -> OpiaSettings
+) : OpiaHome, AppComponentContext by componentContext {
 
     constructor(
-        componentContext: ComponentContext,
+        componentContext: AppComponentContext,
         storeFactory: StoreFactory,
         di: ServiceLocator,
         dispatchers: OpiaDispatchers,
         selfId: UUID
-    ) : this(componentContext = componentContext, selfId = selfId,
-        chats = { childContext, output ->
+    ) : this(componentContext,
+        storeFactory,
+        di,
+        dispatchers,
+        selfId = selfId,
+        chats = { childContext, models, output ->
             ChatsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
                 di = di,
                 dispatchers = dispatchers,
-                selfId = selfId,
+                mainModel = models,
                 output = output
             )
-        }, chat = { childContext, peerId, output ->
+        },
+        chat = { childContext, peerId, output ->
             ChatComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
@@ -52,7 +64,8 @@ class HomeComponent(
                 peerId = peerId,
                 output = output
             )
-        }, settings = { childContext ->
+        },
+        settings = { childContext ->
             SettingsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
@@ -60,12 +73,21 @@ class HomeComponent(
                 dispatchers = dispatchers,
                 selfId = selfId
             )
-        }
-    )
+        })
+
+    private val store = instanceKeeper.getStore {
+        HomeStoreProvider(
+            storeFactory = storeFactory, di = di, dispatchers = dispatchers, selfId = selfId
+        ).provide()
+    }
+
+    override val models: Value<HomeModel> = store.asValue().map(stateToModel)
 
     private val navigation = StackNavigation<Configuration>()
 
-    private val stack = childStack(
+    private val stack = appChildStack(
+        di = di,
+        logout = logout,
         source = navigation,
         initialConfiguration = Configuration.Chats(selfId),
         handleBackButton = true,
@@ -74,25 +96,25 @@ class HomeComponent(
 
     override val childStack: Value<ChildStack<*, Child>> = stack
 
-    override val activeChildIndex: Value<Int> = childStack.map {
-        it.active.instance.index!!
+    override val activeChild: Value<HomeChild> = childStack.map {
+        it.active.instance.meta
     }
 
     override fun onBarSelect(index: Int) {
         navigation.replaceCurrent(
             when (index) {
-                0 -> Configuration.Chats(selfId)
-                1 -> Configuration.Settings(selfId)
+                HomeChild.Chats.navIndex -> Configuration.Chats(selfId)
+                HomeChild.Settings.navIndex -> Configuration.Settings(selfId)
                 else -> error("index: $index")
             }
         )
     }
 
     private fun createChild(
-        configuration: Configuration, componentContext: ComponentContext
+        configuration: Configuration, componentContext: AppComponentContext
     ): Child = when (configuration) {
         is Configuration.Chats -> Child.Chats(
-            chats(componentContext, ::onChatsOutput)
+            chats(componentContext, models, ::onChatsOutput)
         )
         is Configuration.Chat -> Child.Chat(
             chat(componentContext, configuration.peerId, ::onChatOutput)
@@ -103,9 +125,7 @@ class HomeComponent(
     }
 
     private fun onChatsOutput(output: OpiaChats.Output): Unit = when (output) {
-        is OpiaChats.Output.Selected -> navigation.push(
-            Configuration.Chat(output.selfId, output.peerId)
-        )
+        is OpiaChats.Output.Selected -> navigation.push(Configuration.Chat(selfId, output.peerId))
     }
 
     private fun onChatOutput(output: OpiaChat.Output) = when (output) {
@@ -122,4 +142,10 @@ class HomeComponent(
         @Parcelize
         data class Settings(val selfId: UUID) : Configuration()
     }
+}
+
+internal val stateToModel: (HomeStore.State) -> HomeModel = {
+    HomeModel(
+        self = it.self
+    )
 }

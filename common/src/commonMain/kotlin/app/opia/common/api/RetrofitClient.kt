@@ -39,9 +39,9 @@ object RetrofitClient {
         setLevel(HttpLoggingInterceptor.Level.BODY)
     }
 
-    fun newOkHttpClient(di: ServiceLocator) =
+    fun newOkHttpClient(di: ServiceLocator, logout: suspend () -> Unit) =
         OkHttpClient().newBuilder().addInterceptor(RequestInterceptor)
-            .addInterceptor(AuthInterceptor(di))
+            .addInterceptor(AuthInterceptor(di, logout))
             .addInterceptor(loggingInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS).build()
@@ -58,8 +58,7 @@ object RetrofitClient {
             fun fromJson(s: String?): ZonedDateTime? {
                 return s?.let { ZonedDateTime.parse(it) }
             }
-        })
-        .add(object : Any() {
+        }).add(object : Any() {
             @ToJson
             fun toJson(uuid: UUID?): String? {
                 return uuid?.toString()
@@ -69,8 +68,7 @@ object RetrofitClient {
             fun fromJson(s: String?): UUID? {
                 return s?.let { UUID.fromString(it) }
             }
-        })
-        .add(object : Any() {
+        }).add(object : Any() {
             @ToJson
             fun toJson(byteArray: ByteArray): String {
                 return byteArray.let { Base64.getEncoder().encodeToString(it) }
@@ -80,8 +78,7 @@ object RetrofitClient {
             fun fromJson(s: String): ByteArray {
                 return s.let { Base64.getDecoder().decode(it) }
             }
-        })
-        .add(object : Any() {
+        }).add(object : Any() {
             @ToJson
             fun toJson(ubyteArray: UByteArray): String {
                 return ubyteArray.let { Base64.getEncoder().encodeToString(it.toByteArray()) }
@@ -100,8 +97,7 @@ object RetrofitClient {
     fun newRetrofitClient(okHttpClient: OkHttpClient) =
         Retrofit.Builder().client(okHttpClient).baseUrl(mode.config.host)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .addCallAdapterFactory(NetworkResponseAdapterFactory())
-            .build()
+            .addCallAdapterFactory(NetworkResponseAdapterFactory()).build()
 
     fun newInstallationService(retrofit: Retrofit) = retrofit.create(InstallationApi::class.java)
 
