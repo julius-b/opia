@@ -6,7 +6,7 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("org.jetbrains.compose") apply false
-    kotlin("plugin.serialization") version "1.7.20"
+    kotlin("plugin.serialization") version "1.8.0"
 }
 
 group = "app.opia"
@@ -17,11 +17,9 @@ buildscript {
         google()
         gradlePluginPortal()
         mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        maven(url = uri("https://jitpack.io"))
     }
     dependencies {
-        classpath("com.squareup.sqldelight:gradle-plugin:1.5.4")
+        classpath("com.squareup.sqldelight:gradle-plugin:1.5.5")
     }
 }
 
@@ -34,7 +32,7 @@ allprojects {
         maven(url = uri("https://jitpack.io"))
     }
 
-    tasks.withType<KotlinCompile>() {
+    tasks.withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "11"
     }
 }

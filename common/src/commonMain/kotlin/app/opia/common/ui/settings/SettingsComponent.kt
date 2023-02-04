@@ -2,6 +2,7 @@ package app.opia.common.ui.settings
 
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.home.AppComponentContext
 import app.opia.common.ui.settings.OpiaSettings.Model
 import app.opia.common.ui.settings.store.SettingsStore.Intent
@@ -19,7 +20,7 @@ class SettingsComponent(
     storeFactory: StoreFactory,
     di: ServiceLocator,
     dispatchers: OpiaDispatchers,
-    selfId: UUID
+    authCtx: AuthCtx
 ) : OpiaSettings, AppComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         SettingsStoreProvider(
@@ -27,11 +28,15 @@ class SettingsComponent(
             storeFactory = storeFactory,
             di = di,
             dispatchers = dispatchers,
-            selfId = selfId
+            authCtx = authCtx
         ).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)
+
+    override fun onDistributorChanged(distributor: String) {
+        store.accept(Intent.SetDistributor(distributor))
+    }
 
     override fun onNameChanged(name: String) {
         store.accept(Intent.SetName(name))
@@ -52,6 +57,11 @@ class SettingsComponent(
 
 internal val stateToModel: (State) -> Model = {
     Model(
-        self = it.self, name = it.name, desc = it.desc
+        self = it.self,
+        name = it.name,
+        desc = it.desc,
+        distributors = it.distributors,
+        distributor = it.distributor,
+        endpoint = it.endpoint
     )
 }

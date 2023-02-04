@@ -1,12 +1,12 @@
 package app.opia.common.ui.auth.registration
 
 import app.opia.common.db.Owned_field
+import app.opia.common.ui.auth.AuthCtx
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
-import java.util.*
 
 const val VERIFICATION_CODE_LENGTH = 6
 
@@ -54,7 +54,7 @@ interface OpiaRegistration {
 
     fun onAuthenticate()
 
-    fun onAuthenticated(selfId: UUID)
+    fun onAuthenticated(authCtx: AuthCtx)
 
     data class Model(
         val uiState: RegistrationState,
@@ -80,13 +80,13 @@ interface OpiaRegistration {
 
     sealed class Event {
         object OwnedFieldConfirmed : Event()
-        data class Authenticated(val selfId: UUID) : Event()
+        data class Authenticated(val authCtx: AuthCtx) : Event()
         object NetworkError : Event()
         object UnknownError : Event()
     }
 
     sealed class Output {
-        data class Authenticated(val selfId: UUID) : Output()
+        data class Authenticated(val authCtx: AuthCtx) : Output()
         object BackToAuth : Output()
     }
 }

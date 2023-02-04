@@ -1,6 +1,7 @@
 package app.opia.common.ui.auth.registration.store
 
 import app.opia.common.db.Owned_field
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.RegistrationState
 import app.opia.common.ui.auth.registration.store.RegistrationStore.*
 import com.arkivanov.mvikotlin.core.store.Store
@@ -49,7 +50,7 @@ internal interface RegistrationStore : Store<Intent, State, Label> {
 
     sealed class Label {
         object OwnedFieldConfirmed : Label()
-        data class Authenticated(val selfId: UUID) : Label()
+        data class Authenticated(val authCtx: AuthCtx) : Label()
         object NetworkError : Label()
         object UnknownError : Label()
     }

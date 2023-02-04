@@ -3,6 +3,7 @@ package app.opia.common.ui
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthComponent
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.OpiaAuth
 import app.opia.common.ui.auth.registration.OpiaRegistration
 import app.opia.common.ui.auth.registration.RegistrationComponent
@@ -19,7 +20,6 @@ import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import kotlinx.coroutines.withContext
-import java.util.*
 
 class OpiaRootComponent internal constructor(
     componentContext: ComponentContext,
@@ -28,7 +28,7 @@ class OpiaRootComponent internal constructor(
     private val splash: (ComponentContext, (OpiaSplash.Output) -> Unit) -> OpiaSplash,
     private val auth: (ComponentContext, (OpiaAuth.Output) -> Unit) -> OpiaAuth,
     private val registration: (ComponentContext, (OpiaRegistration.Output) -> Unit) -> OpiaRegistration,
-    private val home: (AppComponentContext, selfId: UUID) -> OpiaHome
+    private val home: (AppComponentContext, authCtx: AuthCtx) -> OpiaHome
 ) : OpiaRoot, ComponentContext by componentContext {
 
     constructor(
@@ -66,13 +66,13 @@ class OpiaRootComponent internal constructor(
                 output = output
             )
         },
-        home = { childContext, selfId ->
+        home = { childContext, authCtx ->
             HomeComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
                 dispatchers = dispatchers,
                 di = di,
-                selfId = selfId
+                authCtx = authCtx
             )
         })
 
@@ -101,7 +101,7 @@ class OpiaRootComponent internal constructor(
         )
         is Configuration.Home -> OpiaRoot.Child.Home(
             home(
-                DefaultAppComponentContext(componentContext, di, ::logout), configuration.selfId
+                DefaultAppComponentContext(componentContext, di, ::logout), configuration.authCtx
             )
         )
     }
@@ -116,7 +116,7 @@ class OpiaRootComponent internal constructor(
     // reset splash state by replacing it - on logout, it will requery the db again
     private fun onSplashOutput(output: OpiaSplash.Output) = when (output) {
         is OpiaSplash.Output.Auth -> navigation.replaceAll(Configuration.Auth)
-        is OpiaSplash.Output.Main -> navigation.replaceAll(Configuration.Home(output.selfId))
+        is OpiaSplash.Output.Main -> navigation.replaceAll(Configuration.Home(output.authCtx))
     }
 
     private fun onAuthOutput(output: OpiaAuth.Output) = when (output) {
@@ -125,7 +125,7 @@ class OpiaRootComponent internal constructor(
         is OpiaAuth.Output.ContinueWithProvider -> {
             println("[+] Root > onAuthOutput > navigating to provider screen: ${output.provider}")
         }
-        is OpiaAuth.Output.Authenticated -> navigation.replaceAll(Configuration.Home(output.selfId))
+        is OpiaAuth.Output.Authenticated -> navigation.replaceAll(Configuration.Home(output.authCtx))
     }
 
     private fun onRegistrationOutput(output: OpiaRegistration.Output) = when (output) {
@@ -133,7 +133,7 @@ class OpiaRootComponent internal constructor(
             // pop Registration
             navigation.pop()
             // replace Auth
-            navigation.replaceAll(Configuration.Home(output.selfId))
+            navigation.replaceAll(Configuration.Home(output.authCtx))
         }
         is OpiaRegistration.Output.BackToAuth -> navigation.pop()
     }
@@ -149,6 +149,6 @@ class OpiaRootComponent internal constructor(
         object Registration : Configuration()
 
         @Parcelize
-        data class Home(val selfId: UUID) : Configuration()
+        data class Home(val authCtx: AuthCtx) : Configuration()
     }
 }

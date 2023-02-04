@@ -2,6 +2,7 @@ package app.opia.common.ui.chats.chat
 
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.chat.OpiaChat.*
 import app.opia.common.ui.chats.chat.store.ChatStore.*
 import app.opia.common.ui.chats.chat.store.ChatStoreProvider
@@ -21,7 +22,7 @@ class ChatComponent(
     storeFactory: StoreFactory,
     di: ServiceLocator,
     dispatchers: OpiaDispatchers,
-    selfId: UUID,
+    authCtx: AuthCtx,
     peerId: UUID,
     private val output: (Output) -> Unit
 ) : OpiaChat, ComponentContext by componentContext {
@@ -30,7 +31,7 @@ class ChatComponent(
             storeFactory = storeFactory,
             di = di,
             dispatchers = dispatchers,
-            selfId = selfId,
+            authCtx = authCtx,
             peerId = peerId
         ).provide()
     }

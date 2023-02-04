@@ -1,5 +1,5 @@
-import java.util.UUID;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 -- updated_at
 CREATE TABLE IF NOT EXISTS msg (
@@ -111,3 +111,41 @@ SELECT * FROM rcpt_sync_status;
 
 deleteReceiptSyncStatus:
 DELETE FROM rcpt_sync_status WHERE msg_id = ? AND rcpt_ioid = ? AND dup = ? AND updated_at = ?;
+
+CREATE TABLE IF NOT EXISTS notification_config (
+  actor_id TEXT AS UUID NOT NULL,
+  ioid TEXT AS UUID,
+  provider TEXT CHECK (ioid IS NOT NULL OR provider IS NULL), -- if ioid is null, provider has to be null
+  endpoint TEXT CHECK (ioid IS NOT NULL OR endpoint IS NULL),
+  notify INTEGER AS Boolean,
+  notify_msg_recv INTEGER AS Boolean
+);
+
+-- TODO only allow one null
+CREATE UNIQUE INDEX IF NOT EXISTS notification_config_actor_id_ioid ON notification_config (actor_id, ioid);
+
+upsertNotificationConfig:
+INSERT OR REPLACE INTO notification_config (actor_id, ioid, provider, endpoint, notify, notify_msg_recv) VALUES (?, ?, ?, ?, ?, ?);
+
+getNotificationConfig:
+SELECT * FROM notification_config WHERE actor_id = ? AND ioid = ?;
+
+resetNotificationConfig:
+UPDATE notification_config SET provider = NULL, endpoint = NULL WHERE actor_id = ? AND ioid = ?;
+
+-- ¯\_(ツ)_/¯
+triggerNotificationConfig:
+UPDATE notification_config SET endpoint = notification_config.endpoint WHERE actor_id = ? AND ioid = ?;
+
+-- sync only deletes a single
+CREATE TABLE IF NOT EXISTS nc_update (
+  id TEXT AS UUID PRIMARY KEY NOT NULL,
+  actor_id TEXT AS UUID NOT NULL,
+  ioid TEXT AS UUID
+);
+
+createNCUpdate:
+INSERT INTO nc_update (id, actor_id, ioid) VALUES (?, ?, ?);
+
+deleteNCUpdate:
+DELETE FROM nc_update WHERE id = ?;

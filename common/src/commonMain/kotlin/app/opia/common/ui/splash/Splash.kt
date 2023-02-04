@@ -1,6 +1,6 @@
 package app.opia.common.ui.splash
 
-import java.util.*
+import app.opia.common.ui.auth.AuthCtx
 
 interface OpiaSplash {
 
@@ -8,6 +8,6 @@ interface OpiaSplash {
 
     sealed class Output {
         object Auth : Output()
-        data class Main(val selfId: UUID) : Output()
+        data class Main(val authCtx: AuthCtx) : Output()
     }
 }

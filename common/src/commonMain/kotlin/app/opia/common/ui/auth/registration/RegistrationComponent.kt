@@ -3,6 +3,7 @@ package app.opia.common.ui.auth.registration
 import OpiaDispatchers
 import app.opia.common.db.Actor
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.OpiaRegistration.*
 import app.opia.common.ui.auth.registration.store.RegistrationStore.*
 import app.opia.common.ui.auth.registration.store.RegistrationStoreProvider
@@ -91,8 +92,8 @@ class RegistrationComponent(
         store.accept(Intent.Authenticate)
     }
 
-    override fun onAuthenticated(selfId: UUID) {
-        output(Output.Authenticated(selfId))
+    override fun onAuthenticated(authCtx: AuthCtx) {
+        output(Output.Authenticated(authCtx))
     }
 }
 
@@ -123,7 +124,7 @@ internal val stateToModel: (State) -> Model = {
 internal val labelToEvent: (Label) -> Event = {
     when (it) {
         is Label.OwnedFieldConfirmed -> Event.OwnedFieldConfirmed
-        is Label.Authenticated -> Event.Authenticated(it.selfId)
+        is Label.Authenticated -> Event.Authenticated(it.authCtx)
         is Label.NetworkError -> Event.NetworkError
         is Label.UnknownError -> Event.UnknownError
     }

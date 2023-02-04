@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import app.opia.common.DefaultNotificationRepo
 import app.opia.common.db.DriverFactory
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.OpiaRoot
@@ -44,6 +45,6 @@ fun main() {
 private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
     componentContext = componentContext,
     storeFactory = DefaultStoreFactory(),
-    di = ServiceLocator(DriverFactory(), DefaultDispatchers),
+    di = ServiceLocator(DriverFactory(), DefaultDispatchers) { DefaultNotificationRepo },
     dispatchers = DefaultDispatchers
 )

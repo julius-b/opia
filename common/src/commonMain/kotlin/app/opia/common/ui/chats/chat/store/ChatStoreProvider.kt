@@ -5,6 +5,7 @@ import app.opia.common.db.Actor
 import app.opia.common.db.Msg
 import app.opia.common.db.Msg_payload
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.chat.MessageItem
 import app.opia.common.ui.chats.chat.store.ChatStore.*
 import com.arkivanov.mvikotlin.core.store.Reducer
@@ -25,7 +26,7 @@ internal class ChatStoreProvider(
     private val storeFactory: StoreFactory,
     private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
-    private val selfId: UUID,
+    private val authCtx: AuthCtx,
     private val peerId: UUID
 ) {
     val db = di.database
@@ -62,14 +63,14 @@ internal class ChatStoreProvider(
 
         private fun loadStateFromDb(state: State) {
             scope.launch {
-                val self = db.actorQueries.getById(selfId).asFlow().mapToOne().first()
+                val self = db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().first()
                 val peer = db.actorQueries.getById(peerId).asFlow().mapToOne().first()
                 dispatch(Msg.SelfUpdated(self))
                 dispatch(Msg.PeerUpdated(peer))
-                db.msgQueries.listAll(peerId, selfId).asFlow().mapToList().collectLatest {
+                db.msgQueries.listAll(peerId, authCtx.actorId).asFlow().mapToList().collectLatest {
                     dispatch(Msg.MsgsUpdated(it.map {
                         // from may be any actor in a group, self is unique
-                        val from = if (it.from_id == selfId) null else peer.name
+                        val from = if (it.from_id == authCtx.actorId) null else peer.name
                         MessageItem(from, it.payload, it.created_at)
                     }))
                 }

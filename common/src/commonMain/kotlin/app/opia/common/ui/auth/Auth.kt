@@ -2,6 +2,8 @@ package app.opia.common.ui.auth
 
 import app.opia.common.ui.auth.store.IdentityProvider
 import com.arkivanov.decompose.value.Value
+import com.arkivanov.essenty.parcelable.Parcelable
+import com.arkivanov.essenty.parcelable.Parcelize
 import kotlinx.coroutines.flow.Flow
 import java.util.*
 
@@ -22,7 +24,7 @@ interface OpiaAuth {
 
     fun onContinueWithProvider(provider: IdentityProvider)
 
-    fun onAuthenticated(selfId: UUID)
+    fun onAuthenticated(authCtx: AuthCtx)
 
     data class Model(
         val isLoading: Boolean,
@@ -33,14 +35,23 @@ interface OpiaAuth {
     )
 
     sealed class Event {
-        data class Authenticated(val selfId: UUID) : Event()
+        data class Authenticated(val authCtx: AuthCtx) : Event()
         object NetworkError : Event()
         object UnknownError : Event()
     }
 
     sealed class Output {
-        data class Authenticated(val selfId: UUID) : Output()
+        data class Authenticated(val authCtx: AuthCtx) : Output()
         data class ContinueWithProvider(val provider: IdentityProvider) : Output()
         object Register : Output()
     }
 }
+
+// info that remains constant per refreshToken
+@Parcelize
+data class AuthCtx(
+    val installationId: UUID,
+    val actorId: UUID,
+    val ioid: UUID,
+    val secretUpdateId: UUID
+) : Parcelable

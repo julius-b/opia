@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.opia.common.ui.component.DropdownButton
 import app.opia.common.ui.component.opiaBlue
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 import kotlinx.coroutines.launch
@@ -24,14 +24,25 @@ fun SettingsContent(component: OpiaSettings) {
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // change notification provider
-
         Text(
             text = "Hi, ${model.self?.name}",
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             color = opiaBlue,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
+        )
+
+        DropdownButton(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            values = model.distributors,
+            value = model.distributor,
+            contentDescription = "Select a notification distributor",
+            onValueChanged = component::onDistributorChanged
+        )
+
+        Text(
+            text = "endpoint: ${model.endpoint}",
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
         )
 
         OutlinedTextField(

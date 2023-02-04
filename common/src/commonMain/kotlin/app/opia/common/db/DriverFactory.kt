@@ -64,6 +64,8 @@ fun createDatabase(driverFactory: DriverFactory): OpiaDatabase {
         Msg_rcpt.Adapter(
             uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter, dateAdapter
         ),
+        Nc_update.Adapter(uuidAdapter, uuidAdapter, uuidAdapter),
+        Notification_config.Adapter(uuidAdapter, uuidAdapter),
         Owned_field.Adapter(
             uuidAdapter, uuidAdapter, uuidAdapter, EnumColumnAdapter(), dateAdapter, dateAdapter
         ),

@@ -7,6 +7,8 @@ interface OpiaSettings {
 
     val models: Value<Model>
 
+    fun onDistributorChanged(distributor: String)
+
     fun onNameChanged(name: String)
 
     fun onDescChanged(desc: String)
@@ -18,6 +20,9 @@ interface OpiaSettings {
     data class Model(
         val self: Actor?,
         val name: String,
-        val desc: String
+        val desc: String,
+        val distributors: List<String>,
+        val distributor: String?,
+        val endpoint: String?
     )
 }

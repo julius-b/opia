@@ -8,6 +8,7 @@ import app.opia.common.api.model.OwnedFieldType
 import app.opia.common.api.repository.ActorTypeUser
 import app.opia.common.db.Owned_field
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.RegistrationState
 import app.opia.common.ui.auth.registration.VERIFICATION_CODE_LENGTH
 import app.opia.common.ui.auth.registration.store.RegistrationStore.*
@@ -129,7 +130,16 @@ internal class RegistrationStoreProvider(
                                 val self =
                                     di.database.actorQueries.getById(actorId).asFlow().mapToOne()
                                         .first()
-                                publish(Label.Authenticated(self.id))
+                                publish(
+                                    Label.Authenticated(
+                                        AuthCtx(
+                                            installationId = asRes.body.data.installation_id,
+                                            actorId = self.id,
+                                            ioid = asRes.body.data.ioid,
+                                            secretUpdateId = asRes.body.data.secret_update_id
+                                        )
+                                    )
+                                )
                             }
                             // can't handle ApiError
                             is NetworkResponse.NetworkError -> publish(Label.NetworkError)

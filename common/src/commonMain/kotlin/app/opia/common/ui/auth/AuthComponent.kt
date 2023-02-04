@@ -56,8 +56,8 @@ class AuthComponent(
         output(Output.ContinueWithProvider(provider))
     }
 
-    override fun onAuthenticated(selfId: UUID) {
-        output(Output.Authenticated(selfId))
+    override fun onAuthenticated(authCtx: AuthCtx) {
+        output(Output.Authenticated(authCtx))
     }
 }
 
@@ -73,7 +73,7 @@ internal val stateToModel: (State) -> Model = {
 
 internal val labelToEvent: (Label) -> Event = {
     when (it) {
-        is Label.Authenticated -> Event.Authenticated(it.selfId)
+        is Label.Authenticated -> Event.Authenticated(it.authCtx)
         is Label.NetworkError -> Event.NetworkError
         is Label.UnknownError -> Event.UnknownError
     }

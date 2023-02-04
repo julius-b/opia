@@ -43,6 +43,8 @@ class ChatSync(
     // TODO move some code to MessageRepository, etc.
     // TODO handle server errors: skex expired, etc.
     suspend fun sync() {
+        // TODO upload notificationThing
+
         if (!keyRepo.syncKeys(sess)) {
             println("[!] Sync > key sync failed, bailing...")
             return

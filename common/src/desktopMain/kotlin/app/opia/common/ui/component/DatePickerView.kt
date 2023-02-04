@@ -2,46 +2,10 @@ package app.opia.common.ui.component
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import java.time.LocalDate
 import java.util.*
-
-// wait until ExposedDropdownMenuBox is available?
-// see: https://github.com/JetBrains/compose-jb/issues/1673
-@Composable
-fun <T: Any> DropdownButton(
-    values: List<T>,
-    value: T,
-    onValueChanged: (value: T) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    TextButton(
-        onClick = { expanded = true }
-    ) {
-        Text(value.toString())
-        Icon(
-            imageVector = Icons.Default.ArrowDropDown,
-            contentDescription = "expand day select"
-        )
-    }
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = { expanded = false },
-    ) {
-        for (v in values) {
-            DropdownMenuItem(
-                onClick = {
-                    expanded = false
-                    onValueChanged(v)
-                }
-            ) {
-                Text(v.toString())
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -72,16 +36,22 @@ actual fun DatePickerView(
             Column {
                 Row {
                     DropdownButton(
+                        Modifier,
                         (0..31).toList(),
-                        day
+                        day,
+                        "expand day select"
                     ) { day = it }
                     DropdownButton(
+                        Modifier,
                         (0..12).toList(),
-                        month
+                        month,
+                        "expand day select"
                     ) { month = it }
                     DropdownButton(
+                        Modifier,
                         (1900..currentYear).toList(),
-                        year
+                        year,
+                        "expand day select"
                     ) { year = it }
                 }
             }

@@ -60,7 +60,7 @@ fun RegistrationContent(component: OpiaRegistration) {
                     component.onAuthenticate()
                 }
                 is Event.Authenticated -> {
-                    component.onAuthenticated(it.selfId)
+                    component.onAuthenticated(it.authCtx)
                 }
                 is Event.NetworkError -> {
                     // TODO cancel on new (passing `this` does not help)

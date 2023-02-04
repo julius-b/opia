@@ -4,6 +4,7 @@ import OpiaDispatchers
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.store.AuthStore.*
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.Store
@@ -69,7 +70,16 @@ internal class AuthStoreProvider(
                         val actorId = authRes.body.data.actor_id
                         val self =
                             di.database.actorQueries.getById(actorId).asFlow().mapToOne().first()
-                        publish(Label.Authenticated(self.id))
+                        publish(
+                            Label.Authenticated(
+                                AuthCtx(
+                                    installationId = authRes.body.data.installation_id,
+                                    actorId = self.id,
+                                    ioid = authRes.body.data.ioid,
+                                    secretUpdateId = authRes.body.data.secret_update_id
+                                )
+                            )
+                        )
                     }
                     is NetworkResponse.ApiError -> {
                         if (authRes.body.errors == null) {

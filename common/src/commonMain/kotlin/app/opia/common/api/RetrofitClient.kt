@@ -33,7 +33,7 @@ object RetrofitClient {
         Prod(RunConfig(host = "https://opia.app/api/v1/"));
     }
 
-    private val mode: Mode = Mode.LocalDebug
+    private val mode: Mode = Mode.NetworkDebug
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)

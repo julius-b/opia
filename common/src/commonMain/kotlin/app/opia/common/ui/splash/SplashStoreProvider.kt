@@ -2,6 +2,7 @@ package app.opia.common.ui.splash
 
 import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.splash.OpiaSplash.Output
 import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
@@ -54,7 +55,16 @@ internal class SplashStoreProvider(
                 if (sess != null) {
                     val self =
                         di.database.actorQueries.getById(sess.actor_id).asFlow().mapToOne().first()
-                    onNext(Output.Main(self.id))
+                    onNext(
+                        Output.Main(
+                            AuthCtx(
+                                installationId = sess.installation_id,
+                                actorId = self.id,
+                                ioid = sess.ioid,
+                                secretUpdateId = sess.secret_update_id
+                            )
+                        )
+                    )
                 } else {
                     // Auth expects an empty db
                     di.authRepo.logout()

@@ -22,18 +22,18 @@ kotlin {
                 implementation(compose.desktop.currentOs)
 
                 // common
-                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-02")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-02")
-                implementation("com.arkivanov.essenty:parcelable:0.7.0")
-                implementation("com.arkivanov.essenty:lifecycle:0.7.0")
+                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-04")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-04")
+                implementation("com.arkivanov.essenty:parcelable:1.0.0")
+                implementation("com.arkivanov.essenty:lifecycle:1.0.0")
 
-                implementation("com.arkivanov.mvikotlin:mvikotlin:3.0.2")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.0.2")
-                implementation("com.arkivanov.mvikotlin:rx:3.0.2") // Disposable
+                implementation("com.arkivanov.mvikotlin:mvikotlin:3.1.0")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.1.0")
+                implementation("com.arkivanov.mvikotlin:rx:3.1.0") // Disposable
 
                 // Desktop
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
-                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.0.2") // DefaultStoreFactory
+                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.1.0") // DefaultStoreFactory
             }
         }
         val jvmTest by getting
