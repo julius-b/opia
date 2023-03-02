@@ -22,8 +22,8 @@ kotlin {
                 implementation(compose.desktop.currentOs)
 
                 // common
-                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-04")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-04")
+                implementation("com.arkivanov.decompose:decompose:1.0.0")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0")
                 implementation("com.arkivanov.essenty:parcelable:1.0.0")
                 implementation("com.arkivanov.essenty:lifecycle:1.0.0")
 

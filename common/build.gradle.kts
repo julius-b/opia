@@ -30,7 +30,7 @@ kotlin {
                 api(compose.material)
                 api(compose.materialIconsExtended)
                 api(compose.ui)
-                api("androidx.appcompat:appcompat:1.6.0")
+                api("androidx.appcompat:appcompat:1.6.1")
                 api("androidx.compose.ui:ui-text:1.3.3")
 
                 implementation("com.squareup.sqldelight:runtime:1.5.5")
@@ -45,8 +45,8 @@ kotlin {
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
 
-                implementation("com.arkivanov.decompose:decompose:1.0.0-beta-04")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0-beta-04")
+                implementation("com.arkivanov.decompose:decompose:1.0.0")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0")
                 implementation("com.arkivanov.essenty:parcelable:1.0.0")
                 implementation("com.arkivanov.essenty:lifecycle:1.0.0")
 
