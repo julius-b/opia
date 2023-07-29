@@ -5,20 +5,15 @@ import app.opia.common.api.RetrofitClient
 import app.opia.common.api.model.Authorization
 import app.opia.common.api.model.RefreshToken
 import app.opia.common.di.ServiceLocator
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.Base64
 
-internal class AuthInterceptor(
-    private val di: ServiceLocator, private val logout: suspend () -> Unit
-) : Interceptor {
-    // CoroutineScope(Dispatchers.IO).launch
+internal class AuthInterceptor : Interceptor {
+    // CoroutineScope(Dispatchers.IO).launch - should already be on a bg thread
     override fun intercept(chain: Interceptor.Chain) = runBlocking {
         val r = chain.request()
         if (r.header(RefreshToken) != null || r.header(Authorization) != null)
@@ -27,7 +22,9 @@ internal class AuthInterceptor(
         val req = r.newBuilder()
 
         // no request when no authSession exists -> don't hinder login/registration process
-        var authSession = di.database.sessionQueries.getLatest().asFlow().mapToOneOrNull().first()
+        var authSession =
+            if (!ServiceLocator.isAuthenticated()) null else ServiceLocator.database.sessionQueries.getLatest()
+                .executeAsOneOrNull()
         println("[*] AuthInterceptor > current: ${authSession?.created_at}")
         if (authSession != null) {
             val jwt = authSession.access_token.split('.')
@@ -42,18 +39,21 @@ internal class AuthInterceptor(
             // exp - 5 < now: refresh TODO reset to 5
             if (exp.minus(1, ChronoUnit.MINUTES).isBefore(now)) {
                 println("[~] AuthInterceptor > refreshing...")
-                val res = di.authRepo.api.refreshAuthSession("Bearer ${authSession.refresh_token}")
+                val res =
+                    ServiceLocator.authRepo.api.refreshAuthSession("Bearer ${authSession.refresh_token}")
                 when (res) {
                     is NetworkResponse.ApiSuccess -> {
                         authSession = res.body.data
                         // id, created_at, etc. stay the same
-                        di.database.sessionQueries.insert(authSession)
+                        ServiceLocator.database.sessionQueries.insert(authSession)
                     }
+
                     is NetworkResponse.ApiError -> {
                         println("[-] AuthIntercept > deleting auth sessions: $res")
-                        di.database.sessionQueries.deleteAll(ZonedDateTime.now())
+                        ServiceLocator.database.sessionQueries.deleteAll(ZonedDateTime.now())
                         authSession = null
                     }
+
                     else -> {
                         println("[-] AuthIntercept > unknown response: $res")
                         authSession = null
@@ -69,7 +69,7 @@ internal class AuthInterceptor(
         if (res.code == 401) {
             // eg. {"code":"unauthenticated","errors":{"token":[{"code":"signature"}]}}
             println("[!] AuthIntercept > logout > expected token to be valid but got 'unauthenticated'...")
-            logout()
+            if (ServiceLocator.isAuthenticated()) ServiceLocator.authCtx.logout()
         }
 
         res

@@ -15,6 +15,15 @@ kotlin {
         }
         withJava()
     }
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "11"
+        }
+    }
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
     sourceSets {
         val jvmMain by getting {
             dependencies {
@@ -22,18 +31,18 @@ kotlin {
                 implementation(compose.desktop.currentOs)
 
                 // common
-                implementation("com.arkivanov.decompose:decompose:1.0.0")
-                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:1.0.0")
-                implementation("com.arkivanov.essenty:parcelable:1.0.0")
-                implementation("com.arkivanov.essenty:lifecycle:1.0.0")
+                implementation("com.arkivanov.decompose:decompose:2.0.0")
+                implementation("com.arkivanov.decompose:extensions-compose-jetbrains:2.0.0")
+                implementation("com.arkivanov.essenty:parcelable:1.1.0")
+                implementation("com.arkivanov.essenty:lifecycle:1.1.0")
 
-                implementation("com.arkivanov.mvikotlin:mvikotlin:3.1.0")
-                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.1.0")
-                implementation("com.arkivanov.mvikotlin:rx:3.1.0") // Disposable
+                implementation("com.arkivanov.mvikotlin:mvikotlin:3.2.1")
+                implementation("com.arkivanov.mvikotlin:mvikotlin-extensions-coroutines:3.2.1")
+                implementation("com.arkivanov.mvikotlin:rx:3.2.1") // Disposable
 
                 // Desktop
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.4") // coroutines Main
-                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.1.0") // DefaultStoreFactory
+                implementation("com.arkivanov.mvikotlin:mvikotlin-main:3.2.1") // DefaultStoreFactory
             }
         }
         val jvmTest by getting

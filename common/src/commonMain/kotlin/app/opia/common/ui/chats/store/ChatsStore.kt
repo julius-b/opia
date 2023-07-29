@@ -1,6 +1,5 @@
 package app.opia.common.ui.chats.store
 
-import app.opia.common.db.Actor
 import app.opia.common.ui.chats.ChatsItem
 import app.opia.common.ui.chats.store.ChatsStore.*
 import com.arkivanov.mvikotlin.core.store.Store
@@ -15,7 +14,6 @@ interface ChatsStore : Store<Intent, State, Label> {
     }
 
     data class State(
-        val self: Actor? = null,
         val chats: List<ChatsItem> = emptyList(),
         val searchQuery: String = "",
         val searchError: String? = null

@@ -1,7 +1,9 @@
 package app.opia.common.ui.auth.store
 
 import app.opia.common.ui.auth.AuthCtx
-import app.opia.common.ui.auth.store.AuthStore.*
+import app.opia.common.ui.auth.store.AuthStore.Intent
+import app.opia.common.ui.auth.store.AuthStore.Label
+import app.opia.common.ui.auth.store.AuthStore.State
 import com.arkivanov.mvikotlin.core.store.Store
 
 enum class IdentityProvider {

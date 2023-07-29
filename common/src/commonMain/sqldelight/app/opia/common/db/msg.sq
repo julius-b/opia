@@ -92,6 +92,15 @@ AND (
   (msg.from_id = :peer_id AND msg.rcpt_id = :self_id) -- sent from this peer to us in dm (nothing for collective)
 );
 
+-- returns: messages not yet read by this :actor_id
+listUnread:
+SELECT msg.id, msg_payload.payload, actor.name FROM msg
+LEFT JOIN actor ON actor.id = msg.from_id -- TODO normal join once downloading works...
+JOIN msg_payload ON msg.id = msg_payload.msg_id
+AND msg.from_id != :actor_id
+AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_id = msg.id AND read_at IS NOT NULL)
+ORDER BY msg.created_at DESC;
+
 -- every updated_at has to be handled individually to ensure that no lost updated are inserted bewtween reading, uploading & deleting
 CREATE TABLE IF NOT EXISTS rcpt_sync_status (
   msg_id TEXT AS UUID NOT NULL,
@@ -112,40 +121,53 @@ SELECT * FROM rcpt_sync_status;
 deleteReceiptSyncStatus:
 DELETE FROM rcpt_sync_status WHERE msg_id = ? AND rcpt_ioid = ? AND dup = ? AND updated_at = ?;
 
+-- [ notifications ]
+
+-- opia general
 CREATE TABLE IF NOT EXISTS notification_config (
-  actor_id TEXT AS UUID NOT NULL,
+  actor_id TEXT AS UUID,
   ioid TEXT AS UUID,
-  provider TEXT CHECK (ioid IS NOT NULL OR provider IS NULL), -- if ioid is null, provider has to be null
-  endpoint TEXT CHECK (ioid IS NOT NULL OR endpoint IS NULL),
-  notify INTEGER AS Boolean,
-  notify_msg_recv INTEGER AS Boolean
+  notify INTEGER AS Boolean NOT NULL,
+  notify_msg_recv INTEGER AS Boolean NOT NULL
 );
 
--- TODO only allow one null
-CREATE UNIQUE INDEX IF NOT EXISTS notification_config_actor_id_ioid ON notification_config (actor_id, ioid);
+-- ioid is unique if set, but allows for multiple null values (UNIQUE spec) for different actors
+CREATE UNIQUE INDEX IF NOT EXISTS notification_config_ioid ON notification_config (ioid);
 
-upsertNotificationConfig:
-INSERT OR REPLACE INTO notification_config (actor_id, ioid, provider, endpoint, notify, notify_msg_recv) VALUES (?, ?, ?, ?, ?, ?);
+-- only allow one entry for actor without specific ioid
+CREATE UNIQUE INDEX IF NOT EXISTS notification_config_actor_id_ioid ON notification_config (actor_id) WHERE ioid IS NULL;
 
-getNotificationConfig:
+truncateNotificationCfg:
+DELETE FROM notification_config;
+
+upsertNotificationCfg:
+INSERT OR REPLACE INTO notification_config (actor_id, ioid, notify, notify_msg_recv) VALUES (?, ?, ?, ?);
+
+getNotificationCfg:
 SELECT * FROM notification_config WHERE actor_id = ? AND ioid = ?;
 
-resetNotificationConfig:
-UPDATE notification_config SET provider = NULL, endpoint = NULL WHERE actor_id = ? AND ioid = ?;
-
--- ¯\_(ツ)_/¯
-triggerNotificationConfig:
-UPDATE notification_config SET endpoint = notification_config.endpoint WHERE actor_id = ? AND ioid = ?;
-
--- sync only deletes a single
-CREATE TABLE IF NOT EXISTS nc_update (
-  id TEXT AS UUID PRIMARY KEY NOT NULL,
-  actor_id TEXT AS UUID NOT NULL,
-  ioid TEXT AS UUID
+CREATE TABLE IF NOT EXISTS notification_registration (
+  ioid TEXT AS UUID PRIMARY KEY NOT NULL,
+  provider TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  synced INTEGER AS Boolean NOT NULL
 );
 
-createNCUpdate:
-INSERT INTO nc_update (id, actor_id, ioid) VALUES (?, ?, ?);
+truncateNotificationReg:
+DELETE FROM notification_registration;
 
-deleteNCUpdate:
-DELETE FROM nc_update WHERE id = ?;
+upsertNotificationReg:
+INSERT OR REPLACE INTO notification_registration (ioid, provider, endpoint, synced) VALUES (?, ?, ?, ?);
+
+updateNotificationRegSynced:
+UPDATE notification_registration SET synced = ? WHERE ioid = ?;
+
+getNotificationReg:
+SELECT * FROM notification_registration WHERE ioid = ?;
+
+resetNotificationReg:
+UPDATE notification_registration SET provider = NULL, endpoint = NULL WHERE ioid = ?;
+
+-- ¯\_(ツ)_/¯ (trigger observer)
+triggerNotificationReg:
+UPDATE notification_registration SET ioid = notification_registration.ioid WHERE ioid = ?;

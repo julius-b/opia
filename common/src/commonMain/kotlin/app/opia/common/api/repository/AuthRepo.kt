@@ -5,18 +5,26 @@ import app.opia.common.api.NetworkResponse
 import app.opia.common.api.PlainApiSuccess
 import app.opia.common.api.endpoint.ActorApi
 import app.opia.common.api.endpoint.KeyApi
-import app.opia.common.api.model.*
+import app.opia.common.api.model.AuthHints
+import app.opia.common.api.model.CreateActorParams
+import app.opia.common.api.model.CreateAuthSessionParams
+import app.opia.common.api.model.CreateOwnedFieldParams
+import app.opia.common.api.model.CreateVaultKeyParams
+import app.opia.common.api.model.OwnedFieldScope
+import app.opia.common.api.model.PatchOwnedFieldParams
 import app.opia.common.db.Actor
 import app.opia.common.db.Auth_session
 import app.opia.common.db.Owned_field
 import app.opia.common.db.Vault_key
+import app.opia.common.di.ServiceLocator
 import app.opia.db.OpiaDatabase
 import ch.oxc.nikea.extra.VaultKey
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
-import java.util.*
+import java.util.UUID
 
 // vaultKeyId is set when the key could be recovered
 fun VaultKey.toModel(actorId: UUID, secretUpdateId: UUID, id: UUID = UUID.randomUUID()) = Vault_key(
@@ -41,8 +49,9 @@ class AuthRepo(
     suspend fun createOwnedField(
         scope: OwnedFieldScope, content: String
     ): PlainApiSuccess<Owned_field> {
-        val installation = db.installationQueries.getSelf().asFlow().mapToOneOrNull().first()
-            ?: throw IllegalStateException("installation required for owned field")
+        val installation = withContext(ServiceLocator.dispatchers.io) {
+            db.installationQueries.getSelf().executeAsOneOrNull()
+        } ?: throw IllegalStateException("installation required for owned field")
 
         return api.createOwned(installation.id, CreateOwnedFieldParams(scope, content))
     }
@@ -155,6 +164,7 @@ class AuthRepo(
 
                     return newVK
                 }
+
                 else -> return null
             }
         }
@@ -170,11 +180,13 @@ class AuthRepo(
 
                 println("[*] VaultKey > recover > recovering...")
                 // TODO catch possible decrypt exceptions; if another client uploaded rubbish, best create a new one
-                val recoveredVK = VaultKey.recover(secret, remoteVK.args, remoteVK.seck_enc, ad)
-                    .toModel(authSession.actor_id, authSession.secret_update_id, remoteVK.id)
+                // TODO com.ionspin.kotlin.crypto.aead.AeadCorrupedOrTamperedDataException (maybe due to debug server restart)
+                //val recoveredVK = VaultKey.recover(secret, remoteVK.args, remoteVK.seck_enc, ad)
+                //    .toModel(authSession.actor_id, authSession.secret_update_id, remoteVK.id)
 
                 println("[+] VaultKey > recover > recovered successfully")
-                recoveredVK
+                //recoveredVK
+                return genVaultKey()
             }
             // TODO query first?
             is NetworkResponse.ApiError -> genVaultKey()
@@ -189,6 +201,8 @@ class AuthRepo(
             db.msgQueries.truncateReceiptSyncStatus()
             db.msgQueries.truncateReceipts()
             db.msgQueries.truncatePayloads()
+            db.msgQueries.truncateNotificationCfg()
+            db.msgQueries.truncateNotificationReg()
             db.msgQueries.truncate()
             db.keyPairQueries.truncate()
             db.vaultKeyQueries.truncate()

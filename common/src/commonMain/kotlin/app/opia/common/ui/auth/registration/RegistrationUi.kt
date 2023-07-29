@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.DateRange
@@ -59,9 +58,11 @@ fun RegistrationContent(component: OpiaRegistration) {
                 is Event.OwnedFieldConfirmed -> {
                     component.onAuthenticate()
                 }
+
                 is Event.Authenticated -> {
                     component.onAuthenticated(it.authCtx)
                 }
+
                 is Event.NetworkError -> {
                     // TODO cancel on new (passing `this` does not help)
                     scope.launch {
@@ -71,6 +72,7 @@ fun RegistrationContent(component: OpiaRegistration) {
                         )
                     }
                 }
+
                 is Event.UnknownError -> {
                     scope.launch {
                         scaffoldState.snackbarHostState.showSnackbar(

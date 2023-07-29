@@ -1,11 +1,12 @@
 package app.opia.common.ui.auth
 
 import OpiaDispatchers
-import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.OpiaAuth.Event
 import app.opia.common.ui.auth.OpiaAuth.Model
 import app.opia.common.ui.auth.OpiaAuth.Output
-import app.opia.common.ui.auth.store.AuthStore.*
+import app.opia.common.ui.auth.store.AuthStore.Intent
+import app.opia.common.ui.auth.store.AuthStore.Label
+import app.opia.common.ui.auth.store.AuthStore.State
 import app.opia.common.ui.auth.store.AuthStoreProvider
 import app.opia.common.ui.auth.store.IdentityProvider
 import app.opia.common.utils.asValue
@@ -17,18 +18,16 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.*
 
 class AuthComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
     private val output: (Output) -> Unit
 ) : OpiaAuth, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         AuthStoreProvider(
-            storeFactory = storeFactory, di = di, dispatchers = dispatchers
+            storeFactory = storeFactory, dispatchers = dispatchers
         ).provide()
     }
 

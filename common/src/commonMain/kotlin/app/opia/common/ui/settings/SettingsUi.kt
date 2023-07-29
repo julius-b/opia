@@ -32,19 +32,6 @@ fun SettingsContent(component: OpiaSettings) {
             fontWeight = FontWeight.Bold
         )
 
-        DropdownButton(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            values = model.distributors,
-            value = model.distributor,
-            contentDescription = "Select a notification distributor",
-            onValueChanged = component::onDistributorChanged
-        )
-
-        Text(
-            text = "endpoint: ${model.endpoint}",
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-        )
-
         OutlinedTextField(
             value = model.name,
             onValueChange = component::onNameChanged,

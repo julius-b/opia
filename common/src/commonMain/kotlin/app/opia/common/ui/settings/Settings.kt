@@ -25,4 +25,8 @@ interface OpiaSettings {
         val distributor: String?,
         val endpoint: String?
     )
+
+    sealed class Output {
+        object Logout : Output()
+    }
 }

@@ -1,13 +1,9 @@
 package app.opia.common
 
+import java.util.*
+
 object DefaultNotificationRepo : NotificationRepo {
-    override fun listDistributors() = emptyList<String>()
-
-    override fun init(instance: String) {
-        // do nothing
-    }
-
-    override fun registerUnifiedPush(instance: String, distributor: String?) {
-        // do nothing
+    override suspend fun getCurrentLocalReg(ioid: UUID): ApiPushReg? {
+        return null
     }
 }

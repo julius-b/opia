@@ -10,18 +10,16 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class HomeStoreProvider(
     private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
-    private val authCtx: AuthCtx
+    private val authCtx: AuthCtx,
+    private val logout: () -> Unit
 ) {
-    private val db = di.database
+    private val db = ServiceLocator.database
 
     fun provide(): HomeStore =
         object : HomeStore, Store<Nothing, State, Nothing> by storeFactory.create(
@@ -47,13 +45,19 @@ internal class HomeStoreProvider(
         }
 
         private fun loadStateFromDb() {
-            println("[*] Home > initializing...")
-            di.notificationRepo.init(authCtx.ioid.toString())
+            println("[*] HomeStore - initializing...")
+            if (!ServiceLocator.isAuthenticated()) {
+                println("[~] HomeStore - not authenticated, expecting logout...")
+                return
+            }
             scope.launch {
-                val self = db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().first()
+                // register UI-specific logout
+                ServiceLocator.authCtx.addLogoutHandler(logout)
+
+                val self = withContext(ServiceLocator.dispatchers.io) {
+                    db.actorQueries.getById(authCtx.actorId).executeAsOne()
+                }
                 dispatch(Msg.SelfUpdated(self))
-            }.invokeOnCompletion {
-                println("[~] Home > done")
             }
         }
     }

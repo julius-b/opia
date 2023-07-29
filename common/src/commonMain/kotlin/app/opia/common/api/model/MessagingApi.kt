@@ -52,7 +52,7 @@ data class ApiMsgPacket(
     val rcpt_id: UUID,
     val rcpt_ioid: UUID,
     val dup: Long,
-    val hs_id: UUID,
+    val hs_id: UUID?,
     val seqno: Long,
     val payload_enc: String // Base64 encoded UByteArray
 )

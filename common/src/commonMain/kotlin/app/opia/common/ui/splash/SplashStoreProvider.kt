@@ -8,17 +8,11 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class SplashStoreProvider(
     private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
     private val onNext: (to: Output) -> Unit
 ) {
@@ -43,9 +37,11 @@ internal class SplashStoreProvider(
         private fun loadStateFromDb() {
             println("[*] Splash > init")
             scope.launch {
-                withContext(Dispatchers.IO) { ch.oxc.nikea.initCrypto() }
+                withContext(ServiceLocator.dispatchers.io) { ch.oxc.nikea.initCrypto() }
 
-                val sess = di.database.sessionQueries.getLatest().asFlow().mapToOneOrNull().first()
+                val sess = withContext(ServiceLocator.dispatchers.io) {
+                    ServiceLocator.database.sessionQueries.getLatest().executeAsOneOrNull()
+                }
 
                 // events published during executeAction are not received by consumers because
                 // flow collection hasn't yet started. The problem is mentioned in the docs.
@@ -53,8 +49,9 @@ internal class SplashStoreProvider(
                 // - sending a Msg from UI LaunchedEffect _after_ collecting
                 // - publish update as state, therefore new received will receive the correct value as well
                 if (sess != null) {
-                    val self =
-                        di.database.actorQueries.getById(sess.actor_id).asFlow().mapToOne().first()
+                    val self = withContext(ServiceLocator.dispatchers.io) {
+                        ServiceLocator.database.actorQueries.getById(sess.actor_id).executeAsOne()
+                    }
                     onNext(
                         Output.Main(
                             AuthCtx(
@@ -67,7 +64,7 @@ internal class SplashStoreProvider(
                     )
                 } else {
                     // Auth expects an empty db
-                    di.authRepo.logout()
+                    ServiceLocator.authRepo.logout()
                     onNext(Output.Auth)
                 }
             }

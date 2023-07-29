@@ -1,11 +1,13 @@
 package app.opia.common.ui.auth.registration
 
 import OpiaDispatchers
-import app.opia.common.db.Actor
-import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
-import app.opia.common.ui.auth.registration.OpiaRegistration.*
-import app.opia.common.ui.auth.registration.store.RegistrationStore.*
+import app.opia.common.ui.auth.registration.OpiaRegistration.Event
+import app.opia.common.ui.auth.registration.OpiaRegistration.Model
+import app.opia.common.ui.auth.registration.OpiaRegistration.Output
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Intent
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Label
+import app.opia.common.ui.auth.registration.store.RegistrationStore.State
 import app.opia.common.ui.auth.registration.store.RegistrationStoreProvider
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
@@ -17,18 +19,16 @@ import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
-import java.util.UUID
 
 class RegistrationComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
     private val output: (Output) -> Unit
 ) : OpiaRegistration, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         RegistrationStoreProvider(
-            storeFactory = storeFactory, di = di, dispatchers = dispatchers
+            storeFactory = storeFactory, dispatchers = dispatchers
         ).provide()
     }
 

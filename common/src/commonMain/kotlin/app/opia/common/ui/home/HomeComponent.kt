@@ -1,7 +1,6 @@
 package app.opia.common.ui.home
 
 import OpiaDispatchers
-import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.ChatsComponent
 import app.opia.common.ui.chats.OpiaChats
@@ -15,43 +14,47 @@ import app.opia.common.ui.settings.OpiaSettings
 import app.opia.common.ui.settings.SettingsComponent
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
-import com.arkivanov.decompose.router.stack.*
+import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.decompose.router.stack.ChildStack
+import com.arkivanov.decompose.router.stack.StackNavigation
+import com.arkivanov.decompose.router.stack.childStack
+import com.arkivanov.decompose.router.stack.pop
+import com.arkivanov.decompose.router.stack.push
+import com.arkivanov.decompose.router.stack.replaceCurrent
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import com.arkivanov.mvikotlin.core.store.StoreFactory
-import java.util.*
+import java.util.UUID
 
 class HomeComponent(
-    componentContext: AppComponentContext,
+    componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    di: ServiceLocator,
     dispatchers: OpiaDispatchers,
     private val authCtx: AuthCtx,
-    private val chats: (AppComponentContext, Value<HomeModel>, (OpiaChats.Output) -> Unit) -> OpiaChats,
-    private val chat: (AppComponentContext, peerId: UUID, (OpiaChat.Output) -> Unit) -> OpiaChat,
-    private val settings: (AppComponentContext) -> OpiaSettings
-) : OpiaHome, AppComponentContext by componentContext {
+    private val homeOutput: (OpiaHome.Output) -> Unit,
+    private val chats: (ComponentContext, (OpiaChats.Output) -> Unit) -> OpiaChats,
+    private val chat: (ComponentContext, peerId: UUID, (OpiaChat.Output) -> Unit) -> OpiaChat,
+    private val settings: (ComponentContext, (OpiaSettings.Output) -> Unit) -> OpiaSettings
+) : OpiaHome, ComponentContext by componentContext {
 
     constructor(
-        componentContext: AppComponentContext,
+        componentContext: ComponentContext,
         storeFactory: StoreFactory,
-        di: ServiceLocator,
         dispatchers: OpiaDispatchers,
-        authCtx: AuthCtx
+        authCtx: AuthCtx,
+        homeOutput: (OpiaHome.Output) -> Unit
     ) : this(componentContext,
         storeFactory,
-        di,
         dispatchers,
-        authCtx = authCtx,
-        chats = { childContext, models, output ->
+        authCtx,
+        homeOutput,
+        chats = { childContext, output ->
             ChatsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                di = di,
                 dispatchers = dispatchers,
-                mainModel = models,
                 output = output
             )
         },
@@ -59,36 +62,33 @@ class HomeComponent(
             ChatComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                di = di,
                 dispatchers = dispatchers,
                 authCtx = authCtx,
                 peerId = peerId,
                 output = output
             )
         },
-        settings = { childContext ->
+        settings = { childContext, output ->
             SettingsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                di = di,
                 dispatchers = dispatchers,
-                authCtx = authCtx
+                authCtx = authCtx,
+                output = output
             )
         })
 
     private val store = instanceKeeper.getStore {
         HomeStoreProvider(
-            storeFactory = storeFactory, di = di, dispatchers = dispatchers, authCtx = authCtx
-        ).provide()
+            storeFactory = storeFactory, dispatchers = dispatchers, authCtx = authCtx
+        ) { homeOutput(OpiaHome.Output.Logout) }.provide()
     }
 
     override val models: Value<HomeModel> = store.asValue().map(stateToModel)
 
     private val navigation = StackNavigation<Configuration>()
 
-    private val stack = appChildStack(
-        di = di,
-        logout = logout,
+    private val stack = childStack(
         source = navigation,
         initialConfiguration = Configuration.Chats(authCtx),
         handleBackButton = true,
@@ -112,16 +112,18 @@ class HomeComponent(
     }
 
     private fun createChild(
-        configuration: Configuration, componentContext: AppComponentContext
+        configuration: Configuration, componentContext: ComponentContext
     ): Child = when (configuration) {
         is Configuration.Chats -> Child.Chats(
-            chats(componentContext, models, ::onChatsOutput)
+            chats(componentContext, ::onChatsOutput)
         )
+
         is Configuration.Chat -> Child.Chat(
             chat(componentContext, configuration.peerId, ::onChatOutput)
         )
+
         is Configuration.Settings -> Child.Settings(
-            settings(componentContext)
+            settings(componentContext, ::onSettingsOutput)
         )
     }
 
@@ -131,6 +133,10 @@ class HomeComponent(
 
     private fun onChatOutput(output: OpiaChat.Output) = when (output) {
         is OpiaChat.Output.Back -> navigation.pop()
+    }
+
+    private fun onSettingsOutput(output: OpiaSettings.Output) = when (output) {
+        is OpiaSettings.Output.Logout -> homeOutput(OpiaHome.Output.Logout)
     }
 
     private sealed class Configuration : Parcelable {
@@ -145,8 +151,4 @@ class HomeComponent(
     }
 }
 
-internal val stateToModel: (HomeStore.State) -> HomeModel = {
-    HomeModel(
-        self = it.self
-    )
-}
+internal val stateToModel: (HomeStore.State) -> HomeModel = { HomeModel(self = it.self) }

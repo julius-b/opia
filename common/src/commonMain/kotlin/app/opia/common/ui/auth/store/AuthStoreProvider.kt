@@ -5,7 +5,9 @@ import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
-import app.opia.common.ui.auth.store.AuthStore.*
+import app.opia.common.ui.auth.store.AuthStore.Intent
+import app.opia.common.ui.auth.store.AuthStore.Label
+import app.opia.common.ui.auth.store.AuthStore.State
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
@@ -17,9 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class AuthStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
-    private val dispatchers: OpiaDispatchers
+    private val storeFactory: StoreFactory, private val dispatchers: OpiaDispatchers
 ) {
     fun provide(): AuthStore =
         object : AuthStore, Store<Intent, State, Label> by storeFactory.create(
@@ -53,7 +53,7 @@ internal class AuthStoreProvider(
             scope.launch {
                 // withContext: fix stuttering
                 val installation = withContext(dispatchers.io) {
-                    di.installationRepo.upsertInstallation()
+                    ServiceLocator.installationRepo.upsertInstallation()
                 }
                 println("[*] login > installation: $installation")
                 if (installation == null) {
@@ -63,13 +63,13 @@ internal class AuthStoreProvider(
 
                 // save session & actor
                 val authRes = withContext(dispatchers.io) {
-                    di.authRepo.login(state.unique, state.secret)
+                    ServiceLocator.authRepo.login(state.unique, state.secret)
                 }
                 when (authRes) {
                     is NetworkResponse.ApiSuccess -> {
                         val actorId = authRes.body.data.actor_id
-                        val self =
-                            di.database.actorQueries.getById(actorId).asFlow().mapToOne().first()
+                        val self = ServiceLocator.database.actorQueries.getById(actorId).asFlow()
+                            .mapToOne().first()
                         publish(
                             Label.Authenticated(
                                 AuthCtx(
@@ -81,6 +81,7 @@ internal class AuthStoreProvider(
                             )
                         )
                     }
+
                     is NetworkResponse.ApiError -> {
                         if (authRes.body.errors == null) {
                             println("[!] login > error response has no errors")
@@ -98,15 +99,18 @@ internal class AuthStoreProvider(
                                                 dispatch(Msg.UniqueError("Username required"))
                                                 return@launch
                                             }
+
                                             Code.reference -> {
                                                 dispatch(Msg.UniqueError("No account for this username"))
                                                 return@launch
                                             }
+
                                             else -> {}
                                         }
                                     }
                                     dispatch(Msg.UniqueError(v[0].code.toString()))
                                 }
+
                                 "secret" -> {
                                     for (status in v) {
                                         when (status.code) {
@@ -114,11 +118,13 @@ internal class AuthStoreProvider(
                                                 dispatch(Msg.SecretError("Incorrect password"))
                                                 return@launch
                                             }
+
                                             else -> {}
                                         }
                                     }
                                     dispatch(Msg.SecretError(v[0].code.toString()))
                                 }
+
                                 else -> {
                                     println("[!] login > error response has unknown field: '$k'")
                                     publish(Label.UnknownError)
@@ -126,6 +132,7 @@ internal class AuthStoreProvider(
                             }
                         }
                     }
+
                     is NetworkResponse.NetworkError -> publish(Label.NetworkError)
                     else -> publish(Label.UnknownError)
                 }

@@ -7,7 +7,9 @@ import app.opia.common.db.Msg_payload
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.chat.MessageItem
-import app.opia.common.ui.chats.chat.store.ChatStore.*
+import app.opia.common.ui.chats.chat.store.ChatStore.Intent
+import app.opia.common.ui.chats.chat.store.ChatStore.Label
+import app.opia.common.ui.chats.chat.store.ChatStore.State
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
@@ -15,21 +17,19 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
-import java.util.*
+import java.util.UUID
 
 internal class ChatStoreProvider(
     private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
     private val authCtx: AuthCtx,
     private val peerId: UUID
 ) {
-    val db = di.database
+    val db = ServiceLocator.database
 
     fun provide(): ChatStore =
         object : ChatStore, Store<Intent, State, Label> by storeFactory.create(
@@ -63,8 +63,12 @@ internal class ChatStoreProvider(
 
         private fun loadStateFromDb(state: State) {
             scope.launch {
-                val self = db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().first()
-                val peer = db.actorQueries.getById(peerId).asFlow().mapToOne().first()
+                val self = withContext(ServiceLocator.dispatchers.io) {
+                    db.actorQueries.getById(authCtx.actorId).executeAsOne()
+                }
+                val peer = withContext(ServiceLocator.dispatchers.io) {
+                    db.actorQueries.getById(peerId).executeAsOne()
+                }
                 dispatch(Msg.SelfUpdated(self))
                 dispatch(Msg.PeerUpdated(peer))
                 db.msgQueries.listAll(peerId, authCtx.actorId).asFlow().mapToList().collectLatest {

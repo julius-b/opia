@@ -5,7 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import kotlinx.coroutines.flow.Flow
-import java.util.*
+import java.util.UUID
 
 interface OpiaAuth {
 
@@ -50,8 +50,5 @@ interface OpiaAuth {
 // info that remains constant per refreshToken
 @Parcelize
 data class AuthCtx(
-    val installationId: UUID,
-    val actorId: UUID,
-    val ioid: UUID,
-    val secretUpdateId: UUID
+    val installationId: UUID, val actorId: UUID, val ioid: UUID, val secretUpdateId: UUID
 ) : Parcelable

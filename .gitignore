@@ -47,3 +47,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### nonfree ###
+google-services.json

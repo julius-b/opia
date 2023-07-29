@@ -1,15 +1,13 @@
 package app.opia.common.ui.chats
 
 import OpiaDispatchers
-import app.opia.common.api.endpoint.MessagingApi
-import app.opia.common.api.repository.ActorRepo
-import app.opia.common.api.repository.KeyRepo
-import app.opia.common.di.ServiceLocator
-import app.opia.common.ui.chats.OpiaChats.*
-import app.opia.common.ui.chats.store.ChatsStore.*
+import app.opia.common.ui.chats.OpiaChats.Event
+import app.opia.common.ui.chats.OpiaChats.Model
+import app.opia.common.ui.chats.OpiaChats.Output
+import app.opia.common.ui.chats.store.ChatsStore.Intent
+import app.opia.common.ui.chats.store.ChatsStore.Label
+import app.opia.common.ui.chats.store.ChatsStore.State
 import app.opia.common.ui.chats.store.ChatsStoreProvider
-import app.opia.common.ui.home.AppComponentContext
-import app.opia.common.ui.home.OpiaHome.HomeModel
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
 import com.arkivanov.decompose.ComponentContext
@@ -19,23 +17,18 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.*
+import java.util.UUID
 
 class ChatsComponent(
-    componentContext: AppComponentContext,
+    componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    di: ServiceLocator,
     dispatchers: OpiaDispatchers,
-    private val mainModel: Value<HomeModel>,
     private val output: (Output) -> Unit
 ) : OpiaChats, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
         ChatsStoreProvider(
-            componentContext = componentContext,
             storeFactory = storeFactory,
-            di = di,
-            dispatchers = dispatchers,
-            mainModel = mainModel
+            dispatchers = dispatchers
         ).provide()
     }
 
@@ -62,7 +55,7 @@ class ChatsComponent(
 
 internal val stateToModel: (State) -> Model = {
     Model(
-        self = it.self, chats = it.chats, searchQuery = it.searchQuery, searchError = it.searchError
+        chats = it.chats, searchQuery = it.searchQuery, searchError = it.searchError
     )
 }
 

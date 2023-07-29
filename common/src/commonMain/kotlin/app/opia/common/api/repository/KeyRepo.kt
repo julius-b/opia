@@ -3,16 +3,11 @@ package app.opia.common.api.repository
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.endpoint.KeyApi
 import app.opia.common.api.model.CreateKeyPairParams
-import app.opia.common.api.model.CreateVaultKeyParams
 import app.opia.common.db.Auth_session
 import app.opia.common.db.KeyPairQueries
 import app.opia.common.db.Key_pair
-import app.opia.common.db.Vault_key
-import app.opia.common.di.ServiceLocator
-import app.opia.db.OpiaDatabase
 import ch.oxc.nikea.extra.IdentityKey
 import ch.oxc.nikea.extra.KexKey
-import ch.oxc.nikea.extra.VaultKey
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.flow.first
@@ -89,14 +84,15 @@ class KeyRepo(
             when (newIKRes) {
                 is NetworkResponse.ApiSuccess -> {
                     // currentIK has empty `synced`, newIK has empty `seck_clr`
-                    currentIK = newIKRes.body.data.toKeyPair()
-                        .copy(seck_clr = newIK.seck_clr)
+                    currentIK = newIKRes.body.data.toKeyPair().copy(seck_clr = newIK.seck_clr)
                     keyDB.insert(currentIK)
                 }
+
                 is NetworkResponse.ApiError, is NetworkResponse.NetworkError -> {
                     println("[!] SyncKeys > IdentityKey > generate > unexpected err: $newIKRes")
                     return false
                 }
+
                 else -> return false
             }
         }
@@ -106,30 +102,25 @@ class KeyRepo(
             // nothing to delete
 
             val newSKex = KexKey.new(currentIK.seck_clr).toModel(
-                sess.actor_id,
-                sess.installation_id,
-                sess.ioid,
-                KeyLifetime.static,
-                currentIK.id
+                sess.actor_id, sess.installation_id, sess.ioid, KeyLifetime.static, currentIK.id
             )
             println("[*] SyncKeys > SKex > generate > newSKex: $newSKex")
-            val newSKexRes = api.createKeyPair(CreateKeyPairParams.fromKeyPair(newSKex))
-            when (newSKexRes) {
+            when (val newSKexRes = api.createKeyPair(CreateKeyPairParams.fromKeyPair(newSKex))) {
                 is NetworkResponse.ApiSuccess -> {
-                    currentSKex = newSKexRes.body.data.toKeyPair()
-                        .copy(seck_clr = newSKex.seck_clr)
+                    currentSKex = newSKexRes.body.data.toKeyPair().copy(seck_clr = newSKex.seck_clr)
                     keyDB.insert(currentSKex)
                 }
+
                 is NetworkResponse.ApiError, is NetworkResponse.UnknownError -> {
                     println("[!] SyncKeys > SKex > generate > unexpected err: $newSKexRes")
                     return false
                 }
+
                 else -> return false
             }
         }
 
-        val ekexOutstandingRes = api.listOutstandingEKexKeys()
-        when (ekexOutstandingRes) {
+        when (val ekexOutstandingRes = api.listOutstandingEKexKeys()) {
             is NetworkResponse.ApiSuccess -> {
                 // server may have deleted keys for some reason
                 val hints = ekexOutstandingRes.body.hints!!
@@ -158,26 +149,29 @@ class KeyRepo(
                     val ekexRes = api.createKeyPair(CreateKeyPairParams.fromKeyPair(ekex))
                     when (ekexRes) {
                         is NetworkResponse.ApiSuccess -> {
-                            val keyPair = ekexRes.body.data.toKeyPair()
-                                .copy(seck_clr = ekex.seck_clr)
-                            println("[+] Synckeys > EKex > generate > registered: ${keyPair.id}")
+                            val keyPair =
+                                ekexRes.body.data.toKeyPair().copy(seck_clr = ekex.seck_clr)
+                            println("[+] SyncKeys > EKex > generate > registered: ${keyPair.id}")
                             keyDB.insert(keyPair)
                         }
+
                         is NetworkResponse.ApiError, is NetworkResponse.UnknownError -> {
                             println("[!] SyncKeys > EKex > generate > unexpected err: $ekexOutstandingRes")
                             return false
                         }
+
                         else -> return false
                     }
                 }
             }
+
             is NetworkResponse.ApiError, is NetworkResponse.UnknownError -> {
                 println("[!] SyncKeys > EKex > query > unexpected err: $ekexOutstandingRes")
                 return false
             }
+
             else -> return false
         }
-
         return true
     }
 }

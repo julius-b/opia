@@ -1,10 +1,13 @@
 package app.opia.common.ui.chats.chat
 
 import OpiaDispatchers
-import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
-import app.opia.common.ui.chats.chat.OpiaChat.*
-import app.opia.common.ui.chats.chat.store.ChatStore.*
+import app.opia.common.ui.chats.chat.OpiaChat.Event
+import app.opia.common.ui.chats.chat.OpiaChat.Model
+import app.opia.common.ui.chats.chat.OpiaChat.Output
+import app.opia.common.ui.chats.chat.store.ChatStore.Intent
+import app.opia.common.ui.chats.chat.store.ChatStore.Label
+import app.opia.common.ui.chats.chat.store.ChatStore.State
 import app.opia.common.ui.chats.chat.store.ChatStoreProvider
 import app.opia.common.utils.asValue
 import app.opia.common.utils.getStore
@@ -15,12 +18,11 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.*
+import java.util.UUID
 
 class ChatComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    di: ServiceLocator,
     dispatchers: OpiaDispatchers,
     authCtx: AuthCtx,
     peerId: UUID,
@@ -29,7 +31,6 @@ class ChatComponent(
     private val store = instanceKeeper.getStore {
         ChatStoreProvider(
             storeFactory = storeFactory,
-            di = di,
             dispatchers = dispatchers,
             authCtx = authCtx,
             peerId = peerId

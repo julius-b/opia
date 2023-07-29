@@ -6,7 +6,6 @@ import app.opia.common.api.model.PatchActorParams
 import app.opia.common.db.Actor
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
-import app.opia.common.ui.home.AppComponentContext
 import app.opia.common.ui.settings.store.SettingsStore.Intent
 import app.opia.common.ui.settings.store.SettingsStore.State
 import com.arkivanov.mvikotlin.core.store.Reducer
@@ -22,14 +21,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class SettingsStoreProvider(
-    componentContext: AppComponentContext,
     private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
     private val dispatchers: OpiaDispatchers,
     private val authCtx: AuthCtx
 ) {
-    private val db = di.database
-    private val actorApi = componentContext.actorRepo.api
+    private val db = ServiceLocator.database
+    private val actorApi by lazy { ServiceLocator.actorRepo.api }
 
     fun provide(): SettingsStore =
         object : SettingsStore, Store<Intent, State, Nothing> by storeFactory.create(
@@ -67,6 +64,10 @@ internal class SettingsStoreProvider(
         }
 
         private fun loadStateFromDb(state: State) {
+            if (!ServiceLocator.isAuthenticated()) {
+                println("[~] Settings - not authenticated, expecting logout...")
+                return
+            }
             scope.launch {
                 db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().collectLatest { self ->
                     println("[*] Settings > self: $self")
@@ -76,25 +77,25 @@ internal class SettingsStoreProvider(
                 }
             }
             scope.launch {
-                db.msgQueries.getNotificationConfig(authCtx.actorId, authCtx.ioid).asFlow()
-                    .mapToOneOrNull().collectLatest { nc ->
+                db.msgQueries.getNotificationReg(authCtx.ioid).asFlow().mapToOneOrNull()
+                    .collectLatest { nc ->
                         dispatch(Msg.DistributorUpdated(nc?.provider))
                         dispatch(Msg.EndpointUpdated(nc?.endpoint))
                     }
             }
             scope.launch {
-                val distributors = di.notificationRepo.listDistributors()
-                println("[*] Settings > distributors: $distributors")
-                dispatch(Msg.DistributorsUpdated(distributors))
+                //val distributors = di.notificationRepo.listDistributors()
+                //println("[*] Settings > distributors: $distributors")
+                //dispatch(Msg.DistributorsUpdated(distributors))
             }
         }
 
         private fun onDistributorChanged(distributor: String) {
             dispatch(Msg.DistributorUpdated(distributor))
-            di.notificationRepo.registerUnifiedPush(
-                authCtx.ioid.toString(),
-                if (distributor == "none") null else distributor
-            )
+//            di.notificationRepo.registerUnifiedPush(
+//                authCtx.ioid.toString(),
+//                if (distributor == "none") null else distributor
+//            )
             // TODO
         }
 

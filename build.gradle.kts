@@ -6,7 +6,8 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("org.jetbrains.compose") apply false
-    kotlin("plugin.serialization") version "1.8.0"
+    kotlin("plugin.serialization") version "1.8.20"
+    id("com.google.devtools.ksp") version "1.8.20-1.0.11" apply false
 }
 
 group = "app.opia"
@@ -20,6 +21,8 @@ buildscript {
     }
     dependencies {
         classpath("com.squareup.sqldelight:gradle-plugin:1.5.5")
+        // nonfree
+        classpath("com.google.gms:google-services:4.3.15")
     }
 }
 

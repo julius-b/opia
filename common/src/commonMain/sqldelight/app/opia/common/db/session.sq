@@ -1,5 +1,5 @@
-import java.util.UUID;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 CREATE TABLE IF NOT EXISTS auth_session (
   id TEXT AS UUID PRIMARY KEY NOT NULL,
@@ -19,6 +19,14 @@ INSERT OR REPLACE INTO auth_session (id, actor_id, installation_id, ioid, secret
 
 getLatest:
 SELECT * FROM auth_session WHERE created_at = (SELECT max(created_at) FROM auth_session) AND deleted_at IS NULL;
+
+getLatestByIOID:
+SELECT * FROM auth_session WHERE created_at = (SELECT max(created_at) FROM auth_session) AND ioid = :ioid AND deleted_at IS NULL;
+
+-- select rows with maximum values in each group
+-- should return latest auth_session per ioid
+getLatestByDistinctIOID:
+SELECT actor_id, ioid, max(created_at) FROM auth_session WHERE deleted_at IS NULL GROUP BY ioid;
 
 truncate:
 DELETE FROM auth_session;

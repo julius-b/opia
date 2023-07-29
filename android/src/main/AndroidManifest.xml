@@ -7,6 +7,7 @@
 
     <!-- TODO disable usesCleartextTraffic -->
     <application
+        android:name=".ApplicationContext"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -21,17 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver
-            android:name=".UnifiedPushReceiver"
-            android:enabled="true"
-            android:exported="true">
+        <service
+            android:name=".notify.FCMReceiver"
+            android:exported="false">
             <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.MESSAGE" />
-                <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
-                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
-                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
-                <action android:name="org.unifiedpush.android.connector.REGISTRATION_REFUSED" />
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
-        </receiver>
+        </service>
     </application>
 </manifest>

@@ -11,7 +11,9 @@ import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.RegistrationState
 import app.opia.common.ui.auth.registration.VERIFICATION_CODE_LENGTH
-import app.opia.common.ui.auth.registration.store.RegistrationStore.*
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Intent
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Label
+import app.opia.common.ui.auth.registration.store.RegistrationStore.State
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
@@ -26,9 +28,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 internal class RegistrationStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val di: ServiceLocator,
-    private val dispatchers: OpiaDispatchers
+    private val storeFactory: StoreFactory, private val dispatchers: OpiaDispatchers
 ) {
     fun provide(): RegistrationStore =
         object : RegistrationStore, Store<Intent, State, Label> by storeFactory.create(
@@ -79,16 +79,14 @@ internal class RegistrationStoreProvider(
             is Intent.SetSecret -> dispatch(Msg.SecretChanged(intent.secret))
             is Intent.SetSecretRepeat -> dispatch(Msg.SecretRepeatChanged(intent.secretRepeat))
             is Intent.SetPhoneVerificationCode -> dispatch(
-                Msg.PhoneVerificationCodeChanged(
-                    intent.verificationCode
-                )
+                Msg.PhoneVerificationCodeChanged(intent.verificationCode)
             )
+
             is Intent.ConfirmPhoneVerificationDialog -> confirmPhoneVerification(getState())
             is Intent.DismissPhoneVerificationDialog -> dispatch(
-                Msg.PhoneVerificationChanged(
-                    null
-                )
+                Msg.PhoneVerificationChanged(null)
             )
+
             is Intent.Authenticate -> register(getState())
         }
 
@@ -104,7 +102,7 @@ internal class RegistrationStoreProvider(
                 val ownedFields = mutableListOf(state.phoneVerification)
                 state.emailVerification?.let { ownedFields.add(it) }
                 val res = withContext(Dispatchers.IO) {
-                    di.authRepo.register(
+                    ServiceLocator.authRepo.register(
                         ActorTypeUser, state.handle, state.name, state.secret, ownedFields
                     )
                 }
@@ -122,14 +120,14 @@ internal class RegistrationStoreProvider(
                         // TODO should session res contain all active ownedFields? yes, for login!
                         // save session & actor
                         val asRes = withContext(Dispatchers.IO) {
-                            di.authRepo.login(state.handle, state.secret)
+                            ServiceLocator.authRepo.login(state.handle, state.secret)
                         }
                         when (asRes) {
                             is NetworkResponse.ApiSuccess -> {
                                 val actorId = asRes.body.data.actor_id
                                 val self =
-                                    di.database.actorQueries.getById(actorId).asFlow().mapToOne()
-                                        .first()
+                                    ServiceLocator.database.actorQueries.getById(actorId).asFlow()
+                                        .mapToOne().first()
                                 publish(
                                     Label.Authenticated(
                                         AuthCtx(
@@ -146,6 +144,7 @@ internal class RegistrationStoreProvider(
                             else -> publish(Label.UnknownError)
                         }
                     }
+
                     is NetworkResponse.ApiError -> {
                         println("[~] register > actor errors: ${res.body.errors}")
                         if (res.body.errors == null) {
@@ -166,6 +165,7 @@ internal class RegistrationStoreProvider(
                                     }
                                     dispatch(Msg.UiStateChanged(RegistrationState.StepOne))
                                 }
+
                                 "secret" -> dispatch(Msg.SecretError("Password must contain at least 8 characters"))
                                 else -> {
                                     // TODO it's possible that an owned-field has been taken -> handle conflict error here as well
@@ -175,6 +175,7 @@ internal class RegistrationStoreProvider(
                             }
                         }
                     }
+
                     is NetworkResponse.NetworkError -> publish(Label.NetworkError)
                     else -> publish(Label.UnknownError)
                 }
@@ -197,7 +198,7 @@ internal class RegistrationStoreProvider(
 
             scope.launch {
                 // validate ownedField
-                val res = di.authRepo.patchOwnedField(
+                val res = ServiceLocator.authRepo.patchOwnedField(
                     state.phoneVerification.id, state.phoneVerification.verification_code
                 )
                 when (res) {
@@ -210,10 +211,12 @@ internal class RegistrationStoreProvider(
                         // let UI trigger the Registration Intent, current `state` is tainted
                         publish(Label.OwnedFieldConfirmed)
                     }
+
                     is NetworkResponse.ApiError -> {
                         // TODO parse...
                         dispatch(Msg.PhoneVerificationCodeError("incorrect code"))
                     }
+
                     is NetworkResponse.NetworkError -> publish(Label.NetworkError)
                     else -> publish(Label.UnknownError)
                 }
@@ -233,7 +236,7 @@ internal class RegistrationStoreProvider(
             dispatch(Msg.LoadingChanged(true))
             scope.launch {
                 val installation =
-                    withContext(Dispatchers.IO) { di.installationRepo.upsertInstallation() }
+                    withContext(Dispatchers.IO) { ServiceLocator.installationRepo.upsertInstallation() }
                 println("[*] register > installation: $installation")
                 if (installation == null) {
                     publish(Label.NetworkError)
@@ -262,13 +265,16 @@ internal class RegistrationStoreProvider(
                 val ownedFieldResponses = mutableListOf<Owned_field>()
                 for (owned in ownedFieldRequests) {
                     val ownedRes = withContext(Dispatchers.IO) {
-                        di.authRepo.createOwnedField(OwnedFieldScope.signup, owned.second)
+                        ServiceLocator.authRepo.createOwnedField(
+                            OwnedFieldScope.signup, owned.second
+                        )
                     }
                     println("[*] register > owned: $ownedRes")
                     when (ownedRes) {
                         is NetworkResponse.ApiSuccess -> {
                             ownedFieldResponses.add(ownedRes.body.data)
                         }
+
                         is NetworkResponse.ApiError -> {
                             if (ownedRes.body.errors == null) {
                                 println("[!] register > owned > error response has no errors")
@@ -287,6 +293,7 @@ internal class RegistrationStoreProvider(
                                                                 "invalid email"
                                                             )
                                                         )
+
                                                         OwnedFieldType.phone_no -> dispatch(
                                                             Msg.PhoneNoError(
                                                                 "invalid phone number"
@@ -294,10 +301,12 @@ internal class RegistrationStoreProvider(
                                                         )
                                                     }
                                                 }
+
                                                 else -> {}
                                             }
                                         }
                                     }
+
                                     "value" -> {
                                         for (status in v) {
                                             when (status.code) {
@@ -308,6 +317,7 @@ internal class RegistrationStoreProvider(
                                                                 "already used"
                                                             )
                                                         )
+
                                                         OwnedFieldType.phone_no -> dispatch(
                                                             Msg.PhoneNoError(
                                                                 "already used"
@@ -315,10 +325,12 @@ internal class RegistrationStoreProvider(
                                                         )
                                                     }
                                                 }
+
                                                 else -> {}
                                             }
                                         }
                                     }
+
                                     else -> {
                                         println("[!] register > owned > error response has unknown field: '$k'")
                                         publish(Label.UnknownError)
@@ -326,6 +338,7 @@ internal class RegistrationStoreProvider(
                                 }
                             }
                         }
+
                         is NetworkResponse.NetworkError -> publish(Label.NetworkError)
                         else -> publish(Label.UnknownError)
                     }
@@ -386,6 +399,7 @@ internal class RegistrationStoreProvider(
             is Msg.EmailChanged -> copy(
                 email = msg.email, emailError = null, emailVerification = null
             )
+
             is Msg.EmailError -> copy(emailError = msg.error)
             is Msg.PhoneNoChanged -> copy(
                 phoneNo = msg.phoneNo,
@@ -393,6 +407,7 @@ internal class RegistrationStoreProvider(
                 phoneVerification = null,
                 phoneVerificationCode = ""
             )
+
             is Msg.PhoneNoError -> copy(phoneNoError = msg.error)
             is Msg.SecretChanged -> copy(secret = msg.secret, secretError = null)
             is Msg.SecretError -> copy(secretError = msg.error)
@@ -403,11 +418,13 @@ internal class RegistrationStoreProvider(
                 // reset error
                 phoneVerificationCodeError = null
             )
+
             is Msg.PhoneVerificationCodeChanged -> copy(
                 phoneVerification = phoneVerification!!.copy(content = msg.verificationCode),
                 phoneVerificationCode = msg.verificationCode,
                 phoneVerificationCodeError = null
             )
+
             is Msg.PhoneVerificationCodeError -> copy(phoneVerificationCodeError = msg.error)
             is Msg.EmailVerificationChanged -> copy(emailVerification = msg.emailVerification)
         }

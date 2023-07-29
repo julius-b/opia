@@ -33,6 +33,6 @@ interface OpiaHome {
     }
 
     sealed class Output {
-        object Back : Output()
+        object Logout : Output()
     }
 }

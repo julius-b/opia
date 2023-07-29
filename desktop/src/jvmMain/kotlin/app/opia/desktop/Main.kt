@@ -10,6 +10,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.opia.common.DefaultNotificationRepo
 import app.opia.common.db.DriverFactory
+import app.opia.common.db.createDatabase
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.OpiaRoot
 import app.opia.common.ui.OpiaRootComponent
@@ -22,7 +23,21 @@ import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 
 @OptIn(ExperimentalDecomposeApi::class)
-fun main() {
+fun main(args: Array<String>) {
+    if (args.size == 2 && args[1] == "--sh") {
+        println("[+] launching shell...")
+        while (true) {
+            readln()
+        }
+        return
+    }
+
+    ServiceLocator.init(
+        DefaultDispatchers,
+        createDatabase(DriverFactory()),
+        DefaultNotificationRepo
+    )
+
     val lifecycle = LifecycleRegistry()
     val root = opiaRoot(DefaultComponentContext(lifecycle = lifecycle))
 
@@ -45,6 +60,5 @@ fun main() {
 private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
     componentContext = componentContext,
     storeFactory = DefaultStoreFactory(),
-    di = ServiceLocator(DriverFactory(), DefaultDispatchers) { DefaultNotificationRepo },
     dispatchers = DefaultDispatchers
 )

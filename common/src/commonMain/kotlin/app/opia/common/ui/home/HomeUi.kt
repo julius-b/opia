@@ -23,7 +23,7 @@ import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 fun HomeContent(component: OpiaHome) {
     val activeChild by component.activeChild.subscribeAsState()
 
-    println("activeChild: $activeChild")
+    println("[*] Home > activeChild: $activeChild")
     Scaffold(topBar = {
         if (!activeChild.isChild) TopAppBar(
             title = { Text(navbar[activeChild.navIndex]) },

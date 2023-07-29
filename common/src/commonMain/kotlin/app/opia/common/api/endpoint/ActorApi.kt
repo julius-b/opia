@@ -1,12 +1,10 @@
 package app.opia.common.api.endpoint
 
+import app.opia.common.ApiPushReg
 import app.opia.common.api.HintedApiSuccess
 import app.opia.common.api.PlainApiSuccess
 import app.opia.common.api.model.*
-import app.opia.common.db.Actor
-import app.opia.common.db.Actor_link
-import app.opia.common.db.Auth_session
-import app.opia.common.db.Owned_field
+import app.opia.common.db.*
 import retrofit2.http.*
 import java.util.*
 
@@ -57,4 +55,9 @@ interface ActorApi {
 
     @GET("actor/link")
     suspend fun listLinks(): PlainApiSuccess<List<Actor_link>>
+
+    // settings
+
+    @POST("notify/reg")
+    suspend fun postNotifyReg(@Body params: ApiPushReg): PlainApiSuccess<ApiPushReg>
 }

@@ -19,7 +19,6 @@ interface OpiaChats {
     fun onSearchClicked()
 
     data class Model(
-        val self: Actor?,
         val chats: List<ChatsItem>,
         val searchQuery: String,
         val searchError: String?

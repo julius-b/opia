@@ -3,10 +3,11 @@ package app.opia.common.ui.auth.registration.store
 import app.opia.common.db.Owned_field
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.RegistrationState
-import app.opia.common.ui.auth.registration.store.RegistrationStore.*
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Intent
+import app.opia.common.ui.auth.registration.store.RegistrationStore.Label
+import app.opia.common.ui.auth.registration.store.RegistrationStore.State
 import com.arkivanov.mvikotlin.core.store.Store
 import java.time.LocalDate
-import java.util.*
 
 internal interface RegistrationStore : Store<Intent, State, Label> {
     sealed class Intent {
