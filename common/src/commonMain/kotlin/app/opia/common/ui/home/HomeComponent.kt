@@ -1,6 +1,5 @@
 package app.opia.common.ui.home
 
-import OpiaDispatchers
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.ChatsComponent
 import app.opia.common.ui.chats.OpiaChats
@@ -31,7 +30,6 @@ import java.util.UUID
 class HomeComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    dispatchers: OpiaDispatchers,
     private val authCtx: AuthCtx,
     private val homeOutput: (OpiaHome.Output) -> Unit,
     private val chats: (ComponentContext, (OpiaChats.Output) -> Unit) -> OpiaChats,
@@ -42,19 +40,17 @@ class HomeComponent(
     constructor(
         componentContext: ComponentContext,
         storeFactory: StoreFactory,
-        dispatchers: OpiaDispatchers,
         authCtx: AuthCtx,
         homeOutput: (OpiaHome.Output) -> Unit
     ) : this(componentContext,
         storeFactory,
-        dispatchers,
         authCtx,
         homeOutput,
         chats = { childContext, output ->
             ChatsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
+                authCtx = authCtx,
                 output = output
             )
         },
@@ -62,7 +58,6 @@ class HomeComponent(
             ChatComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 authCtx = authCtx,
                 peerId = peerId,
                 output = output
@@ -72,7 +67,6 @@ class HomeComponent(
             SettingsComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 authCtx = authCtx,
                 output = output
             )
@@ -80,8 +74,8 @@ class HomeComponent(
 
     private val store = instanceKeeper.getStore {
         HomeStoreProvider(
-            storeFactory = storeFactory, dispatchers = dispatchers, authCtx = authCtx
-        ) { homeOutput(OpiaHome.Output.Logout) }.provide()
+            storeFactory = storeFactory, authCtx = authCtx
+        ).provide()
     }
 
     override val models: Value<HomeModel> = store.asValue().map(stateToModel)
@@ -90,7 +84,7 @@ class HomeComponent(
 
     private val stack = childStack(
         source = navigation,
-        initialConfiguration = Configuration.Chats(authCtx),
+        initialConfiguration = Configuration.Chats,
         handleBackButton = true,
         childFactory = ::createChild
     )
@@ -104,8 +98,8 @@ class HomeComponent(
     override fun onBarSelect(index: Int) {
         navigation.replaceCurrent(
             when (index) {
-                HomeChild.Chats.navIndex -> Configuration.Chats(authCtx)
-                HomeChild.Settings.navIndex -> Configuration.Settings(authCtx)
+                HomeChild.Chats.navIndex -> Configuration.Chats
+                HomeChild.Settings.navIndex -> Configuration.Settings
                 else -> error("index: $index")
             }
         )
@@ -128,7 +122,7 @@ class HomeComponent(
     }
 
     private fun onChatsOutput(output: OpiaChats.Output): Unit = when (output) {
-        is OpiaChats.Output.Selected -> navigation.push(Configuration.Chat(authCtx, output.peerId))
+        is OpiaChats.Output.Selected -> navigation.push(Configuration.Chat(output.peerId))
     }
 
     private fun onChatOutput(output: OpiaChat.Output) = when (output) {
@@ -141,13 +135,13 @@ class HomeComponent(
 
     private sealed class Configuration : Parcelable {
         @Parcelize
-        data class Chats(val authCtx: AuthCtx) : Configuration()
+        object Chats : Configuration()
 
         @Parcelize
-        data class Chat(val authCtx: AuthCtx, val peerId: UUID) : Configuration()
+        data class Chat(val peerId: UUID) : Configuration()
 
         @Parcelize
-        data class Settings(val authCtx: AuthCtx) : Configuration()
+        object Settings : Configuration()
     }
 }
 

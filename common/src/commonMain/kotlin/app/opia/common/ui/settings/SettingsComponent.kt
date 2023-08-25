@@ -1,6 +1,5 @@
 package app.opia.common.ui.settings
 
-import OpiaDispatchers
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.settings.OpiaSettings.Model
 import app.opia.common.ui.settings.OpiaSettings.Output
@@ -17,16 +16,11 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 class SettingsComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    dispatchers: OpiaDispatchers,
     authCtx: AuthCtx,
     private val output: (Output) -> Unit
 ) : OpiaSettings, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
-        SettingsStoreProvider(
-            storeFactory = storeFactory,
-            dispatchers = dispatchers,
-            authCtx = authCtx
-        ).provide()
+        SettingsStoreProvider(storeFactory = storeFactory, authCtx = authCtx).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)

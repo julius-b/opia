@@ -1,6 +1,6 @@
 package app.opia.common.ui.chats
 
-import OpiaDispatchers
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.OpiaChats.Event
 import app.opia.common.ui.chats.OpiaChats.Model
 import app.opia.common.ui.chats.OpiaChats.Output
@@ -22,14 +22,11 @@ import java.util.UUID
 class ChatsComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    dispatchers: OpiaDispatchers,
+    authCtx: AuthCtx,
     private val output: (Output) -> Unit
 ) : OpiaChats, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
-        ChatsStoreProvider(
-            storeFactory = storeFactory,
-            dispatchers = dispatchers
-        ).provide()
+        ChatsStoreProvider(storeFactory = storeFactory, authCtx = authCtx).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)

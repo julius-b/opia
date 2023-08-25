@@ -1,9 +1,9 @@
 package app.opia.common.ui.chats.store
 
-import OpiaDispatchers
 import app.opia.common.api.repository.LinkPerm
 import app.opia.common.db.Actor_link
 import app.opia.common.di.ServiceLocator
+import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.chats.ChatsItem
 import app.opia.common.ui.chats.store.ChatsStore.Intent
 import app.opia.common.ui.chats.store.ChatsStore.Label
@@ -15,18 +15,19 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
 import java.util.UUID
 
 internal class ChatsStoreProvider(
-    private val storeFactory: StoreFactory, private val dispatchers: OpiaDispatchers
+    private val storeFactory: StoreFactory,
+    private val authCtx: AuthCtx,
 ) {
+    private val dispatchers = ServiceLocator.dispatchers
     private val db = ServiceLocator.database
+    private val actorRepo = ServiceLocator.actorRepo
 
     fun provide(): ChatsStore =
         object : ChatsStore, Store<Intent, State, Label> by storeFactory.create(
@@ -47,13 +48,9 @@ internal class ChatsStoreProvider(
     private inner class ExecutorImpl :
         CoroutineExecutor<Intent, Unit, State, Msg, Label>(dispatchers.main) {
         override fun executeAction(action: Unit, getState: () -> State) {
-            if (!ServiceLocator.isAuthenticated()) {
-                println("[~] ChatsStore - not authenticated, expecting logout...")
-                return
-            }
             scope.launch {
-                val self = withContext(ServiceLocator.dispatchers.io) {
-                    ServiceLocator.actorRepo.getActor(ServiceLocator.authCtx.actorId)!!
+                val self = withContext(dispatchers.io) {
+                    actorRepo.getActor(authCtx.actorId)!!
                 }
                 println("[*] ChatsStore > actor: $self")
                 val ownedFields = withContext(Dispatchers.IO) {
@@ -61,14 +58,14 @@ internal class ChatsStoreProvider(
                 }
                 println("[*] ChatsStore > ownedFields: $ownedFields")
 
-                ServiceLocator.actorRepo.listLinks()
+                actorRepo.listLinks()
 
                 // refresh when db refreshes - maybe listLinks should return a Flow
                 db.actorQueries.listLinksForActor(self.id).asFlow().mapToList().collect {
                     val chats = it.map { link ->
                         // TODO get latest msg per chat
                         // actor should exist in db, only time this returns null is if unauthenticated
-                        val peer = ServiceLocator.actorRepo.getActor(link.peer_id)
+                        val peer = actorRepo.getActor(link.peer_id)
                         if (peer == null) {
                             println("[!] ChatsStore > failed to query peer: ${link.peer_id}")
                             return@collect
@@ -89,18 +86,18 @@ internal class ChatsStoreProvider(
 
         private fun search(state: State) {
             scope.launch {
-                val peer = ServiceLocator.actorRepo.getActorByHandle(state.searchQuery)
+                val peer = actorRepo.getActorByHandle(state.searchQuery)
                 if (peer == null) {
                     dispatch(Msg.SearchErrorChanged("User not found :["))
                     return@launch
                 }
                 db.actorQueries.insertLink(
                     Actor_link(
-                        ServiceLocator.authCtx.actorId,
+                        authCtx.actorId,
                         peer.id,
                         LinkPerm.isAdmin.ordinal.toLong(),
                         ZonedDateTime.now(),
-                        ServiceLocator.authCtx.actorId,
+                        authCtx.actorId,
                         null,
                         null,
                         null
@@ -114,7 +111,7 @@ internal class ChatsStoreProvider(
         private fun openChat(id: UUID) {
             scope.launch {
                 val peer = withContext(Dispatchers.IO) {
-                    db.actorQueries.getById(id).asFlow().mapToOne().first()
+                    db.actorQueries.getById(id).executeAsOne()
                 }
                 publish(Label.ChatOpened(peer.id))
             }

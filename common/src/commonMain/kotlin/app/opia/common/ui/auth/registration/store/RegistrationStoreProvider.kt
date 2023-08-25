@@ -1,6 +1,5 @@
 package app.opia.common.ui.auth.registration.store
 
-import OpiaDispatchers
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.model.OwnedFieldScope
@@ -19,17 +18,19 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 internal class RegistrationStoreProvider(
-    private val storeFactory: StoreFactory, private val dispatchers: OpiaDispatchers
+    private val storeFactory: StoreFactory
 ) {
+    private val dispatchers = ServiceLocator.dispatchers
+    private val db = ServiceLocator.database
+    private val installationRepo = ServiceLocator.installationRepo
+    private val authRepo = ServiceLocator.authRepo
+
     fun provide(): RegistrationStore =
         object : RegistrationStore, Store<Intent, State, Label> by storeFactory.create(
             name = "RegistrationStore",
@@ -102,7 +103,7 @@ internal class RegistrationStoreProvider(
                 val ownedFields = mutableListOf(state.phoneVerification)
                 state.emailVerification?.let { ownedFields.add(it) }
                 val res = withContext(Dispatchers.IO) {
-                    ServiceLocator.authRepo.register(
+                    authRepo.register(
                         ActorTypeUser, state.handle, state.name, state.secret, ownedFields
                     )
                 }
@@ -120,14 +121,14 @@ internal class RegistrationStoreProvider(
                         // TODO should session res contain all active ownedFields? yes, for login!
                         // save session & actor
                         val asRes = withContext(Dispatchers.IO) {
-                            ServiceLocator.authRepo.login(state.handle, state.secret)
+                            authRepo.login(state.handle, state.secret)
                         }
                         when (asRes) {
                             is NetworkResponse.ApiSuccess -> {
                                 val actorId = asRes.body.data.actor_id
-                                val self =
-                                    ServiceLocator.database.actorQueries.getById(actorId).asFlow()
-                                        .mapToOne().first()
+                                val self = withContext(dispatchers.io) {
+                                    db.actorQueries.getById(actorId).executeAsOne()
+                                }
                                 publish(
                                     Label.Authenticated(
                                         AuthCtx(
@@ -198,7 +199,7 @@ internal class RegistrationStoreProvider(
 
             scope.launch {
                 // validate ownedField
-                val res = ServiceLocator.authRepo.patchOwnedField(
+                val res = authRepo.patchOwnedField(
                     state.phoneVerification.id, state.phoneVerification.verification_code
                 )
                 when (res) {
@@ -236,7 +237,7 @@ internal class RegistrationStoreProvider(
             dispatch(Msg.LoadingChanged(true))
             scope.launch {
                 val installation =
-                    withContext(Dispatchers.IO) { ServiceLocator.installationRepo.upsertInstallation() }
+                    withContext(Dispatchers.IO) { installationRepo.upsertInstallation() }
                 println("[*] register > installation: $installation")
                 if (installation == null) {
                     publish(Label.NetworkError)
@@ -265,7 +266,7 @@ internal class RegistrationStoreProvider(
                 val ownedFieldResponses = mutableListOf<Owned_field>()
                 for (owned in ownedFieldRequests) {
                     val ownedRes = withContext(Dispatchers.IO) {
-                        ServiceLocator.authRepo.createOwnedField(
+                        authRepo.createOwnedField(
                             OwnedFieldScope.signup, owned.second
                         )
                     }

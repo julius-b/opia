@@ -1,6 +1,5 @@
 package app.opia.common.ui.auth.store
 
-import OpiaDispatchers
 import app.opia.common.api.Code
 import app.opia.common.api.NetworkResponse
 import app.opia.common.di.ServiceLocator
@@ -12,15 +11,17 @@ import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class AuthStoreProvider(
-    private val storeFactory: StoreFactory, private val dispatchers: OpiaDispatchers
+    private val storeFactory: StoreFactory
 ) {
+    private val dispatchers = ServiceLocator.dispatchers
+    private val db = ServiceLocator.database
+    private val installationRepo = ServiceLocator.installationRepo
+    private val authRepo = ServiceLocator.authRepo
+
     fun provide(): AuthStore =
         object : AuthStore, Store<Intent, State, Label> by storeFactory.create(
             name = "AuthStore",
@@ -53,7 +54,7 @@ internal class AuthStoreProvider(
             scope.launch {
                 // withContext: fix stuttering
                 val installation = withContext(dispatchers.io) {
-                    ServiceLocator.installationRepo.upsertInstallation()
+                    installationRepo.upsertInstallation()
                 }
                 println("[*] login > installation: $installation")
                 if (installation == null) {
@@ -63,13 +64,14 @@ internal class AuthStoreProvider(
 
                 // save session & actor
                 val authRes = withContext(dispatchers.io) {
-                    ServiceLocator.authRepo.login(state.unique, state.secret)
+                    authRepo.login(state.unique, state.secret)
                 }
                 when (authRes) {
                     is NetworkResponse.ApiSuccess -> {
                         val actorId = authRes.body.data.actor_id
-                        val self = ServiceLocator.database.actorQueries.getById(actorId).asFlow()
-                            .mapToOne().first()
+                        val self = withContext(dispatchers.io) {
+                            db.actorQueries.getById(actorId).executeAsOne()
+                        }
                         publish(
                             Label.Authenticated(
                                 AuthCtx(

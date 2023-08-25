@@ -1,6 +1,5 @@
 package app.opia.common.ui.splash
 
-import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.splash.OpiaSplash.Output
@@ -12,10 +11,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class SplashStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
-    private val onNext: (to: Output) -> Unit
+    private val storeFactory: StoreFactory, private val onNext: (to: Output) -> Unit
 ) {
+    private val dispatchers = ServiceLocator.dispatchers
+    private val db = ServiceLocator.database
+
     fun provide(): SplashStore =
         object : SplashStore, Store<Nothing, Unit, Nothing> by storeFactory.create(
             name = "SplashStore",
@@ -37,10 +37,8 @@ internal class SplashStoreProvider(
         private fun loadStateFromDb() {
             println("[*] Splash > init")
             scope.launch {
-                withContext(ServiceLocator.dispatchers.io) { ch.oxc.nikea.initCrypto() }
-
-                val sess = withContext(ServiceLocator.dispatchers.io) {
-                    ServiceLocator.database.sessionQueries.getLatest().executeAsOneOrNull()
+                val sess = withContext(dispatchers.io) {
+                    db.sessionQueries.getLatest().executeAsOneOrNull()
                 }
 
                 // events published during executeAction are not received by consumers because
@@ -49,8 +47,9 @@ internal class SplashStoreProvider(
                 // - sending a Msg from UI LaunchedEffect _after_ collecting
                 // - publish update as state, therefore new received will receive the correct value as well
                 if (sess != null) {
-                    val self = withContext(ServiceLocator.dispatchers.io) {
-                        ServiceLocator.database.actorQueries.getById(sess.actor_id).executeAsOne()
+                    // TODO logout reg here?
+                    val self = withContext(dispatchers.io) {
+                        db.actorQueries.getById(sess.actor_id).executeAsOne()
                     }
                     onNext(
                         Output.Main(

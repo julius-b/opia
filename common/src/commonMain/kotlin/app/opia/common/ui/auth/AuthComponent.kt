@@ -1,6 +1,5 @@
 package app.opia.common.ui.auth
 
-import OpiaDispatchers
 import app.opia.common.ui.auth.OpiaAuth.Event
 import app.opia.common.ui.auth.OpiaAuth.Model
 import app.opia.common.ui.auth.OpiaAuth.Output
@@ -22,13 +21,10 @@ import kotlinx.coroutines.flow.map
 class AuthComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
     private val output: (Output) -> Unit
 ) : OpiaAuth, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
-        AuthStoreProvider(
-            storeFactory = storeFactory, dispatchers = dispatchers
-        ).provide()
+        AuthStoreProvider(storeFactory = storeFactory).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)

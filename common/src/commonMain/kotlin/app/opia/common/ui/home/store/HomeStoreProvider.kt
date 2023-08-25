@@ -1,6 +1,5 @@
 package app.opia.common.ui.home.store
 
-import OpiaDispatchers
 import app.opia.common.db.Actor
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
@@ -15,10 +14,9 @@ import kotlinx.coroutines.withContext
 
 internal class HomeStoreProvider(
     private val storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
-    private val authCtx: AuthCtx,
-    private val logout: () -> Unit
+    private val authCtx: AuthCtx
 ) {
+    private val dispatchers = ServiceLocator.dispatchers
     private val db = ServiceLocator.database
 
     fun provide(): HomeStore =
@@ -46,15 +44,8 @@ internal class HomeStoreProvider(
 
         private fun loadStateFromDb() {
             println("[*] HomeStore - initializing...")
-            if (!ServiceLocator.isAuthenticated()) {
-                println("[~] HomeStore - not authenticated, expecting logout...")
-                return
-            }
             scope.launch {
-                // register UI-specific logout
-                ServiceLocator.authCtx.addLogoutHandler(logout)
-
-                val self = withContext(ServiceLocator.dispatchers.io) {
+                val self = withContext(dispatchers.io) {
                     db.actorQueries.getById(authCtx.actorId).executeAsOne()
                 }
                 dispatch(Msg.SelfUpdated(self))

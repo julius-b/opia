@@ -59,6 +59,5 @@ fun main(args: Array<String>) {
 
 private fun opiaRoot(componentContext: ComponentContext): OpiaRoot = OpiaRootComponent(
     componentContext = componentContext,
-    storeFactory = DefaultStoreFactory(),
-    dispatchers = DefaultDispatchers
+    storeFactory = DefaultStoreFactory()
 )

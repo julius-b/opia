@@ -48,8 +48,8 @@ android {
         applicationId = "app.opia.android"
         minSdk = 24
         targetSdk = 33
-        versionCode = 1
-        versionName = "1.0-SNAPSHOT"
+        versionCode = 2
+        versionName = "1.1-SNAPSHOT"
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.0"

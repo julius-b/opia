@@ -1,6 +1,5 @@
 package app.opia.common.ui
 
-import OpiaDispatchers
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthComponent
 import app.opia.common.ui.auth.AuthCtx
@@ -27,7 +26,6 @@ import kotlinx.coroutines.launch
 
 class OpiaRootComponent internal constructor(
     componentContext: ComponentContext,
-    private val dispatchers: OpiaDispatchers,
     private val splash: (ComponentContext, (OpiaSplash.Output) -> Unit) -> OpiaSplash,
     private val auth: (ComponentContext, (OpiaAuth.Output) -> Unit) -> OpiaAuth,
     private val registration: (ComponentContext, (OpiaRegistration.Output) -> Unit) -> OpiaRegistration,
@@ -36,15 +34,12 @@ class OpiaRootComponent internal constructor(
 
     constructor(
         componentContext: ComponentContext,
-        storeFactory: StoreFactory,
-        dispatchers: OpiaDispatchers
+        storeFactory: StoreFactory
     ) : this(componentContext = componentContext,
-        dispatchers = dispatchers,
         splash = { childContext, output ->
             SplashComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 output = output
             )
         },
@@ -52,7 +47,6 @@ class OpiaRootComponent internal constructor(
             AuthComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 output = output
             )
         },
@@ -60,7 +54,6 @@ class OpiaRootComponent internal constructor(
             RegistrationComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 output = output
             )
         },
@@ -68,7 +61,6 @@ class OpiaRootComponent internal constructor(
             HomeComponent(
                 componentContext = childContext,
                 storeFactory = storeFactory,
-                dispatchers = dispatchers,
                 authCtx = authCtx,
                 homeOutput = output
             )

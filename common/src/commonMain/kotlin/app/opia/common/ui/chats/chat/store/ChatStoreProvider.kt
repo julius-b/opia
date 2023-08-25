@@ -1,6 +1,5 @@
 package app.opia.common.ui.chats.chat.store
 
-import OpiaDispatchers
 import app.opia.common.db.Actor
 import app.opia.common.db.Msg
 import app.opia.common.db.Msg_payload
@@ -24,12 +23,10 @@ import java.time.ZonedDateTime
 import java.util.UUID
 
 internal class ChatStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
-    private val authCtx: AuthCtx,
-    private val peerId: UUID
+    private val storeFactory: StoreFactory, private val authCtx: AuthCtx, private val peerId: UUID
 ) {
-    val db = ServiceLocator.database
+    private val dispatchers = ServiceLocator.dispatchers
+    private val db = ServiceLocator.database
 
     fun provide(): ChatStore =
         object : ChatStore, Store<Intent, State, Label> by storeFactory.create(
@@ -63,10 +60,10 @@ internal class ChatStoreProvider(
 
         private fun loadStateFromDb(state: State) {
             scope.launch {
-                val self = withContext(ServiceLocator.dispatchers.io) {
+                val self = withContext(dispatchers.io) {
                     db.actorQueries.getById(authCtx.actorId).executeAsOne()
                 }
-                val peer = withContext(ServiceLocator.dispatchers.io) {
+                val peer = withContext(dispatchers.io) {
                     db.actorQueries.getById(peerId).executeAsOne()
                 }
                 dispatch(Msg.SelfUpdated(self))

@@ -12,12 +12,14 @@ import app.opia.common.sync.Message
 import app.opia.common.sync.msgActor
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.db.OpiaDatabase
+import ch.oxc.nikea.initCrypto
 import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
@@ -110,14 +112,13 @@ object ServiceLocator {
     private val retrofitClient: Retrofit = RetrofitClient.newRetrofitClient(okHttpClient)
 
     fun init(
-        dispatchers: OpiaDispatchers,
-        database: OpiaDatabase,
-        notificationRepo: NotificationRepo
+        dispatchers: OpiaDispatchers, database: OpiaDatabase, notificationRepo: NotificationRepo
     ) {
         this.dispatchers = dispatchers
         this.database = database
         this.notificationRepo = notificationRepo
         mainScope = MainScope()
+        mainScope.launch(dispatchers.io) { initCrypto() }
     }
 
     // globally register the fact that app is now authenticated

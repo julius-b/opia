@@ -1,6 +1,5 @@
 package app.opia.common.ui.auth.registration
 
-import OpiaDispatchers
 import app.opia.common.ui.auth.AuthCtx
 import app.opia.common.ui.auth.registration.OpiaRegistration.Event
 import app.opia.common.ui.auth.registration.OpiaRegistration.Model
@@ -23,13 +22,10 @@ import java.time.LocalDate
 class RegistrationComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
     private val output: (Output) -> Unit
 ) : OpiaRegistration, ComponentContext by componentContext {
     private val store = instanceKeeper.getStore {
-        RegistrationStoreProvider(
-            storeFactory = storeFactory, dispatchers = dispatchers
-        ).provide()
+        RegistrationStoreProvider(storeFactory = storeFactory).provide()
     }
 
     override val models: Value<Model> = store.asValue().map(stateToModel)

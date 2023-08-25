@@ -1,6 +1,5 @@
 package app.opia.common.ui.settings.store
 
-import OpiaDispatchers
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.model.PatchActorParams
 import app.opia.common.db.Actor
@@ -21,9 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal class SettingsStoreProvider(
-    private val storeFactory: StoreFactory,
-    private val dispatchers: OpiaDispatchers,
-    private val authCtx: AuthCtx
+    private val storeFactory: StoreFactory, private val authCtx: AuthCtx
 ) {
     private val db = ServiceLocator.database
     private val actorApi by lazy { ServiceLocator.actorRepo.api }
@@ -51,7 +48,7 @@ internal class SettingsStoreProvider(
     }
 
     private inner class ExecutorImpl :
-        CoroutineExecutor<Intent, Action, State, Msg, Nothing>(dispatchers.main) {
+        CoroutineExecutor<Intent, Action, State, Msg, Nothing>(ServiceLocator.dispatchers.main) {
         override fun executeAction(action: Action, getState: () -> State) = when (action) {
             is Action.Start -> loadStateFromDb(getState())
         }
@@ -64,10 +61,6 @@ internal class SettingsStoreProvider(
         }
 
         private fun loadStateFromDb(state: State) {
-            if (!ServiceLocator.isAuthenticated()) {
-                println("[~] Settings - not authenticated, expecting logout...")
-                return
-            }
             scope.launch {
                 db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().collectLatest { self ->
                     println("[*] Settings > self: $self")
@@ -101,7 +94,7 @@ internal class SettingsStoreProvider(
 
         private fun updateAccount(state: State) {
             scope.launch {
-                val patchRes = withContext(dispatchers.io) {
+                val patchRes = withContext(ServiceLocator.dispatchers.io) {
                     actorApi.patch(PatchActorParams(name = state.name, desc = state.desc))
                 }
                 println("[*] Settings > update > res: $patchRes")

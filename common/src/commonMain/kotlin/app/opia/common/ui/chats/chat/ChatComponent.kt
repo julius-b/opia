@@ -23,7 +23,6 @@ import java.util.UUID
 class ChatComponent(
     componentContext: ComponentContext,
     storeFactory: StoreFactory,
-    dispatchers: OpiaDispatchers,
     authCtx: AuthCtx,
     peerId: UUID,
     private val output: (Output) -> Unit
@@ -31,7 +30,6 @@ class ChatComponent(
     private val store = instanceKeeper.getStore {
         ChatStoreProvider(
             storeFactory = storeFactory,
-            dispatchers = dispatchers,
             authCtx = authCtx,
             peerId = peerId
         ).provide()

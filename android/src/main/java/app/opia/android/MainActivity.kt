@@ -100,8 +100,7 @@ class MainActivity : AppCompatActivity() {
     private fun opiaRoot(componentContext: ComponentContext): OpiaRoot =
         OpiaRootComponent(
             componentContext = componentContext,
-            storeFactory = LoggingStoreFactory(TimeTravelStoreFactory()),
-            DefaultDispatchers
+            storeFactory = LoggingStoreFactory(TimeTravelStoreFactory())
         )
 
     private class LocalKTaskReceiver(val handler: Handler) :
