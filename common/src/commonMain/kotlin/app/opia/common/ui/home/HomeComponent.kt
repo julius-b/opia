@@ -135,13 +135,13 @@ class HomeComponent(
 
     private sealed class Configuration : Parcelable {
         @Parcelize
-        object Chats : Configuration()
+        data object Chats : Configuration()
 
         @Parcelize
         data class Chat(val peerId: UUID) : Configuration()
 
         @Parcelize
-        object Settings : Configuration()
+        data object Settings : Configuration()
     }
 }
 

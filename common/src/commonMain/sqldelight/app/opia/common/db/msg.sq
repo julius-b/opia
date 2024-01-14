@@ -1,33 +1,22 @@
 import java.time.ZonedDateTime;
 import java.util.UUID;
-
--- updated_at
-CREATE TABLE IF NOT EXISTS msg (
-  id TEXT AS UUID PRIMARY KEY NOT NULL,
-  from_id TEXT AS UUID NOT NULL,
-  rcpt_id TEXT AS UUID NOT NULL,
-  created_at TEXT AS ZonedDateTime NOT NULL CHECK(created_at <> ''),
-  deleted_at TEXT AS ZonedDateTime
-);
-
-insert:
-INSERT OR REPLACE INTO msg (id, from_id, rcpt_id, created_at, deleted_at) VALUES ?;
-
-truncate:
-DELETE FROM msg;
-
+import kotlin.Boolean;
 
 -- one payload per msg (include update_num)
 CREATE TABLE IF NOT EXISTS msg_payload (
   msg_id TEXT AS UUID PRIMARY KEY NOT NULL,
-  payload TEXT NOT NULL
+  from_id TEXT AS UUID NOT NULL,
+  rcpt_id TEXT AS UUID NOT NULL,
+  payload TEXT NOT NULL,
+  timestamp TEXT AS ZonedDateTime NOT NULL CHECK(timestamp <> ''),
+  deleted_at TEXT AS ZonedDateTime
 );
 
 insertPayload:
-INSERT OR REPLACE INTO msg_payload (msg_id, payload) VALUES ?;
+INSERT OR REPLACE INTO msg_payload (msg_id, from_id, rcpt_id, payload, timestamp, deleted_at) VALUES ?;
 
 getById:
-SELECT * FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id AND id = ?;
+SELECT * FROM msg_payload WHERE msg_id = ?;
 
 truncatePayloads:
 DELETE FROM msg_payload;
@@ -60,7 +49,7 @@ INSERT OR REPLACE INTO msg_rcpt (msg_id, rcpt_ioid, dup, hs_id, cause, recv_at, 
 -- considers a rejected message as synced (rejections need to be handled differently than normal uploads)
 -- does not consider that some recipients may have been left out due to expired keys, that information should be queried from server
 listUnsynced:
-SELECT * FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id AND msg.from_id = ? AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_rcpt.msg_id = msg.id LIMIT 1);
+SELECT * FROM msg_payload WHERE msg_payload.from_id = ? AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_rcpt.msg_id = msg_payload.msg_id LIMIT 1);
 
 -- outstanding receipts per message and per recipient
 -- list messages sent from this user where
@@ -75,31 +64,19 @@ listOutstandingReceipts:
 SELECT * FROM msg_rcpt AS outer WHERE rcpt_ioid <> ? AND dup = (SELECT max(inner.dup) FROM msg_rcpt AS inner WHERE outer.msg_id = inner.msg_id AND outer.rcpt_ioid = inner.rcpt_ioid)
  AND (recv_at IS NULL AND rjct_at IS NULL);
 
--- rejections where no newer rcpt exists _for that recipient_
--- NOTE that the db also stores rejections to be sent to other devices, which are not relevant here
--- packets sent by this device
--- TODO * produces NumberFormatException
-listRejected:
-SELECT msg_id, rcpt_ioid, dup, hs_id FROM msg_rcpt WHERE rjct_at IS NOT NULL AND
-EXISTS (SELECT 1 FROM msg WHERE msg.id = msg_rcpt.msg_id AND msg.from_id = ?) AND
-NOT EXISTS (SELECT 1 FROM msg_rcpt AS inner WHERE inner.msg_id = msg_rcpt.msg_id AND inner.rcpt_ioid = msg_rcpt.rcpt_ioid AND inner.dup > msg_rcpt.dup);
-
 -- TODO * produces NumberFormatException
 listAll:
-SELECT msg.id, msg.from_id, msg.rcpt_id, msg.created_at, msg_payload.payload FROM msg, msg_payload WHERE msg.id = msg_payload.msg_id
-AND (
-  msg.rcpt_id = :peer_id OR -- sent to this peer (ie. from us) or group (from anyone)
-  (msg.from_id = :peer_id AND msg.rcpt_id = :self_id) -- sent from this peer to us in dm (nothing for collective)
-);
+SELECT * FROM msg_payload WHERE
+msg_payload.rcpt_id = :peer_id OR -- sent to this peer (ie. from us) or group (from anyone)
+(msg_payload.from_id = :peer_id AND msg_payload.rcpt_id = :self_id); -- sent from this peer to us in dm (nothing for collective)
 
 -- returns: messages not yet read by this :actor_id
 listUnread:
-SELECT msg.id, msg_payload.payload, actor.name FROM msg
-LEFT JOIN actor ON actor.id = msg.from_id -- TODO normal join once downloading works...
-JOIN msg_payload ON msg.id = msg_payload.msg_id
-AND msg.from_id != :actor_id
-AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_id = msg.id AND read_at IS NOT NULL)
-ORDER BY msg.created_at DESC;
+SELECT msg_payload.msg_id, msg_payload.payload, actor.name FROM msg_payload
+LEFT JOIN actor ON actor.id = msg_payload.from_id -- TODO normal join once downloading works...
+WHERE msg_payload.from_id != :actor_id
+AND NOT EXISTS (SELECT 1 FROM msg_rcpt WHERE msg_id = msg_payload.msg_id AND read_at IS NOT NULL)
+ORDER BY msg_payload.timestamp DESC;
 
 -- every updated_at has to be handled individually to ensure that no lost updated are inserted bewtween reading, uploading & deleting
 CREATE TABLE IF NOT EXISTS rcpt_sync_status (

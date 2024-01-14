@@ -8,11 +8,8 @@ import app.opia.common.db.KeyPairQueries
 import app.opia.common.db.Key_pair
 import ch.oxc.nikea.extra.IdentityKey
 import ch.oxc.nikea.extra.KexKey
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.flow.first
 import java.time.ZonedDateTime
-import java.util.*
+import java.util.UUID
 
 enum class KeyType {
     signature, kex
@@ -70,7 +67,7 @@ class KeyRepo(
 ) {
     // TODO handle if GET returns 'expired' or 'rejected' (ie. create new)
     suspend fun syncKeys(sess: Auth_session): Boolean {
-        var currentIK = keyDB.getIdentKey(sess.ioid).asFlow().mapToOneOrNull().first()
+        var currentIK = keyDB.getIdentKey(sess.ioid).executeAsOneOrNull()
         if (currentIK == null) {
             // invalidate the chain of keys that depend on this identity
             // since this client only supports one algo, all keys are invalid
@@ -97,7 +94,7 @@ class KeyRepo(
             }
         }
 
-        var currentSKex = keyDB.getSKexKey(sess.ioid).asFlow().mapToOneOrNull().first()
+        var currentSKex = keyDB.getSKexKey(sess.ioid).executeAsOneOrNull()
         if (currentSKex == null) {
             // nothing to delete
 

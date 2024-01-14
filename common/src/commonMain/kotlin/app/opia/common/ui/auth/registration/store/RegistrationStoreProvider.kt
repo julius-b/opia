@@ -135,7 +135,10 @@ internal class RegistrationStoreProvider(
                                             installationId = asRes.body.data.installation_id,
                                             actorId = self.id,
                                             ioid = asRes.body.data.ioid,
-                                            secretUpdateId = asRes.body.data.secret_update_id
+                                            secretUpdateId = asRes.body.data.secret_update_id,
+                                            refreshToken = asRes.body.data.refresh_token,
+                                            accessToken = asRes.body.data.access_token,
+                                            sessCreatedAt = asRes.body.data.created_at
                                         )
                                     )
                                 )

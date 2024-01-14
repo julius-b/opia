@@ -29,7 +29,7 @@ internal class HomeStoreProvider(
         ) {}
 
     private sealed interface Action {
-        object Start : Action
+        data object Start : Action
     }
 
     private sealed class Msg {
@@ -45,6 +45,8 @@ internal class HomeStoreProvider(
         private fun loadStateFromDb() {
             println("[*] HomeStore - initializing...")
             scope.launch {
+                // TODO TODO on logout, this is deleted -> is it an update?
+                // TODO TODO if yes, if null -> publish(Logout)
                 val self = withContext(dispatchers.io) {
                     db.actorQueries.getById(authCtx.actorId).executeAsOne()
                 }

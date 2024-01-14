@@ -1,7 +1,8 @@
 package app.opia.common.ui.chats.chat.store
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import app.opia.common.db.Actor
-import app.opia.common.db.Msg
 import app.opia.common.db.Msg_payload
 import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.AuthCtx
@@ -14,8 +15,6 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToList
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,7 +37,7 @@ internal class ChatStoreProvider(
         ) {}
 
     private sealed interface Action {
-        object Start : Action
+        data object Start : Action
     }
 
     private sealed class Msg {
@@ -68,29 +67,23 @@ internal class ChatStoreProvider(
                 }
                 dispatch(Msg.SelfUpdated(self))
                 dispatch(Msg.PeerUpdated(peer))
-                db.msgQueries.listAll(peerId, authCtx.actorId).asFlow().mapToList().collectLatest {
-                    dispatch(Msg.MsgsUpdated(it.map {
-                        // from may be any actor in a group, self is unique
-                        val from = if (it.from_id == authCtx.actorId) null else peer.name
-                        MessageItem(from, it.payload, it.created_at)
-                    }))
-                }
+                db.msgQueries.listAll(peerId, authCtx.actorId).asFlow().mapToList(coroutineContext)
+                    .collectLatest {
+                        dispatch(Msg.MsgsUpdated(it.map { msg ->
+                            // from may be any actor in a group, self is unique
+                            val from = if (msg.from_id == authCtx.actorId) null else peer.name
+                            MessageItem(from, msg.payload, msg.timestamp)
+                        }))
+                    }
             }
         }
 
         private fun addMessage(txt: String, state: State) {
             println("[*] addMsg > peer: ${state.peer!!.handle}, txt: $txt")
-            val msg = Msg(
-                UUID.randomUUID(), state.self!!.id, state.peer.id, ZonedDateTime.now(), null
+            val msgPayload = Msg_payload(
+                UUID.randomUUID(), state.self!!.id, state.peer.id, txt, ZonedDateTime.now(), null
             )
-            val msgPayload = Msg_payload(msg.id, txt)
-            db.msgQueries.transaction {
-                afterCommit {
-                    println("[*] addMsg > commit")
-                }
-                db.msgQueries.insert(msg)
-                db.msgQueries.insertPayload(msgPayload)
-            }
+            db.msgQueries.insertPayload(msgPayload)
         }
     }
 

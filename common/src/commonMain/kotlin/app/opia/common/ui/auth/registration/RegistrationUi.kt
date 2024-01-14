@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.TextFieldError
 import app.opia.common.ui.auth.registration.OpiaRegistration.Event
 import app.opia.common.ui.auth.registration.OpiaRegistration.Model
@@ -38,6 +39,7 @@ import app.opia.common.ui.component.opiaBlue
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.format.DateTimeFormatter
 import java.util.*
 
@@ -60,6 +62,9 @@ fun RegistrationContent(component: OpiaRegistration) {
                 }
 
                 is Event.Authenticated -> {
+                    withContext(ServiceLocator.dispatchers.io) {
+                        ServiceLocator.login(it.authCtx)
+                    }
                     component.onAuthenticated(it.authCtx)
                 }
 

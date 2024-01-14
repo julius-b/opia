@@ -1,5 +1,8 @@
 package app.opia.common.ui.settings.store
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOne
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import app.opia.common.api.NetworkResponse
 import app.opia.common.api.model.PatchActorParams
 import app.opia.common.db.Actor
@@ -12,9 +15,6 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOne
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,7 +62,7 @@ internal class SettingsStoreProvider(
 
         private fun loadStateFromDb(state: State) {
             scope.launch {
-                db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne().collectLatest { self ->
+                db.actorQueries.getById(authCtx.actorId).asFlow().mapToOne(coroutineContext).collectLatest { self ->
                     println("[*] Settings > self: $self")
                     dispatch(Msg.SelfUpdated(self))
                     dispatch(Msg.NameUpdated(self.name))
@@ -70,7 +70,7 @@ internal class SettingsStoreProvider(
                 }
             }
             scope.launch {
-                db.msgQueries.getNotificationReg(authCtx.ioid).asFlow().mapToOneOrNull()
+                db.msgQueries.getNotificationReg(authCtx.ioid).asFlow().mapToOneOrNull(coroutineContext)
                     .collectLatest { nc ->
                         dispatch(Msg.DistributorUpdated(nc?.provider))
                         dispatch(Msg.EndpointUpdated(nc?.endpoint))

@@ -6,12 +6,9 @@ import app.opia.common.api.model.ApiInstallation
 import app.opia.common.db.Installation
 import app.opia.common.db.InstallationQueries
 import app.opia.common.utils.getPlatformName
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.*
+import java.util.UUID
 
 class InstallationRepo(
     private val installationDB: InstallationQueries, val api: InstallationApi
@@ -21,7 +18,7 @@ class InstallationRepo(
     // server returns no usable errors
     suspend fun upsertInstallation(): Installation? = mutex.withLock {
         println("[*] upsert_install > syncing...")
-        var installation = installationDB.getSelf().asFlow().mapToOneOrNull().first()
+        var installation = installationDB.getSelf().executeAsOneOrNull()
         println("[*] upsert_install > self: $installation")
         if (installation == null) {
             // NOTE: InetAddress causes exception on android, use expect/actual: withContext(Dispatchers.IO) { InetAddress.getLocalHost() }.hostName
@@ -41,6 +38,7 @@ class InstallationRepo(
                 println("[*] upsert_install > upsert successful")
                 installation
             }
+
             else -> {
                 println("[-] upsert_install > bad response: $res")
                 null

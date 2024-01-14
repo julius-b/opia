@@ -78,7 +78,10 @@ internal class AuthStoreProvider(
                                     installationId = authRes.body.data.installation_id,
                                     actorId = self.id,
                                     ioid = authRes.body.data.ioid,
-                                    secretUpdateId = authRes.body.data.secret_update_id
+                                    secretUpdateId = authRes.body.data.secret_update_id,
+                                    refreshToken = authRes.body.data.refresh_token,
+                                    accessToken = authRes.body.data.access_token,
+                                    sessCreatedAt = authRes.body.data.created_at
                                 )
                             )
                         )

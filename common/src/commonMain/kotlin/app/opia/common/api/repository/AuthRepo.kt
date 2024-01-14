@@ -19,9 +19,6 @@ import app.opia.common.db.Vault_key
 import app.opia.common.di.ServiceLocator
 import app.opia.db.OpiaDatabase
 import ch.oxc.nikea.extra.VaultKey
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -67,7 +64,7 @@ class AuthRepo(
     suspend fun login(
         unique: String, secret: String
     ): HintedApiSuccess<Auth_session, AuthHints> {
-        val installation = db.installationQueries.getSelf().asFlow().mapToOneOrNull().first()
+        val installation = db.installationQueries.getSelf().executeAsOneOrNull()
             ?: throw IllegalStateException("installation required for auth_session")
 
         // TODO query for existing io's? expect caller to truncate db beforehand otherwise
@@ -115,7 +112,7 @@ class AuthRepo(
     suspend fun register(
         type: Char, handle: String, name: String, secret: String, ownedFields: List<Owned_field>
     ): HintedApiSuccess<Actor, AuthHints> {
-        val installation = db.installationQueries.getSelf().asFlow().mapToOneOrNull().first()
+        val installation = db.installationQueries.getSelf().executeAsOneOrNull()
             ?: throw IllegalStateException("installation required for actor")
 
         val params = CreateActorParams(type, handle, name, secret)
@@ -203,7 +200,6 @@ class AuthRepo(
             db.msgQueries.truncatePayloads()
             db.msgQueries.truncateNotificationCfg()
             db.msgQueries.truncateNotificationReg()
-            db.msgQueries.truncate()
             db.keyPairQueries.truncate()
             db.vaultKeyQueries.truncate()
             db.ownedFieldQueries.truncate()

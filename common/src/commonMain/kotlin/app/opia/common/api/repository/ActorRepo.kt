@@ -5,10 +5,7 @@ import app.opia.common.api.endpoint.ActorApi
 import app.opia.common.db.Actor
 import app.opia.common.db.Actor_link
 import app.opia.db.OpiaDatabase
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
-import kotlinx.coroutines.flow.first
-import java.util.*
+import java.util.UUID
 
 const val ActorTypeUser = 'u'
 
@@ -23,7 +20,7 @@ class ActorRepo(
             return actor
         }
         if (res.httpCode == 401) return null
-        return db.actorQueries.getById(id).asFlow().mapToOneOrNull().first()
+        return db.actorQueries.getById(id).executeAsOneOrNull()
     }
 
     suspend fun getActorByHandle(handle: String): Actor? {
@@ -34,7 +31,7 @@ class ActorRepo(
             return actor
         }
         if (res.httpCode == 401) return null
-        return db.actorQueries.getByHandle(handle).asFlow().mapToOneOrNull().first()
+        return db.actorQueries.getByHandle(handle).executeAsOneOrNull()
     }
 
     suspend fun listLinks(): List<Actor_link>? {
@@ -49,6 +46,7 @@ class ActorRepo(
                 }
                 links
             }
+
             else -> null
         }
     }

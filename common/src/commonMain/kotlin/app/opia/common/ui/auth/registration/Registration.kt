@@ -79,14 +79,14 @@ interface OpiaRegistration {
     )
 
     sealed class Event {
-        object OwnedFieldConfirmed : Event()
+        data object OwnedFieldConfirmed : Event()
         data class Authenticated(val authCtx: AuthCtx) : Event()
-        object NetworkError : Event()
-        object UnknownError : Event()
+        data object NetworkError : Event()
+        data object UnknownError : Event()
     }
 
     sealed class Output {
         data class Authenticated(val authCtx: AuthCtx) : Output()
-        object BackToAuth : Output()
+        data object BackToAuth : Output()
     }
 }

@@ -1,6 +1,6 @@
 package app.opia.android
 
-import DefaultDispatchers
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -41,9 +41,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        val di = ServiceLocator(
-//            DriverFactory(context = this), DefaultDispatchers
-//        ) { db -> FCMNotificationRepo() } // AndroidNotificationRepo(this, db)
         val root = opiaRoot(defaultComponentContext())
 
         setContent {
@@ -58,10 +55,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun androidInit() {
-        registerReceiver(
-            LocalKTaskReceiver(Handler(Looper.getMainLooper())), IntentFilter(TopicPushCfg)
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                LocalKTaskReceiver(Handler(Looper.getMainLooper())),
+                IntentFilter(TopicPushCfg),
+                RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                LocalKTaskReceiver(Handler(Looper.getMainLooper())), IntentFilter(TopicPushCfg)
+            )
+        }
 
         val fcmAvailability =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this@MainActivity)

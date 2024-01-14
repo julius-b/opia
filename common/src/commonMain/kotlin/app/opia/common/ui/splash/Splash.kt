@@ -7,7 +7,7 @@ interface OpiaSplash {
     fun onNext(to: Output)
 
     sealed class Output {
-        object Auth : Output()
+        data object Auth : Output()
         data class Main(val authCtx: AuthCtx) : Output()
     }
 }

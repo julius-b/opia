@@ -1,6 +1,7 @@
 import app.opia.common.api.model.OwnedFieldType;
 import java.time.ZonedDateTime;
 import java.util.UUID;
+import kotlin.Boolean;
 
 -- client-side modifications do not allow incomplete fields
 -- only implemented as insert-time checks because the OwnedField is also used for network response parsing

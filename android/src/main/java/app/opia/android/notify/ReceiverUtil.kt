@@ -8,9 +8,6 @@ import app.opia.android.TopicPushCfg
 import app.opia.common.db.DriverFactory
 import app.opia.common.db.createDatabase
 import app.opia.common.utils.catching
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToList
-import com.squareup.sqldelight.runtime.coroutines.mapToOneOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -33,8 +30,7 @@ object ReceiverUtil {
         // FCM updates all accounts (one token per device, but api requires individual update per ioid)
         // UP only updates the selected account (ioid not null)
         val accounts = when (provider) {
-            ProviderFCMNoUP -> db.sessionQueries.getLatestByDistinctIOID().asFlow().mapToList()
-                .first().map { Account(it.actor_id, it.ioid) }
+            ProviderFCMNoUP -> db.sessionQueries.getLatestByDistinctIOID().executeAsList().map { Account(it.actor_id, it.ioid) }
 
             else -> {
                 val ioid =
@@ -42,7 +38,7 @@ object ReceiverUtil {
                         Log.e(TAG, "updateDB [$provider:$ioidS] - malformed instance, ignoring")
                         return@runBlocking
                     }.getOrThrow()
-                val sess = db.sessionQueries.getLatestByIOID(ioid).asFlow().mapToOneOrNull().first()
+                val sess = db.sessionQueries.getLatestByIOID(ioid).executeAsOneOrNull()
                 if (sess == null) null
                 else listOf(Account(sess.actor_id, sess.ioid))
             }

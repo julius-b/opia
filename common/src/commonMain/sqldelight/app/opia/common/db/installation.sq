@@ -1,6 +1,7 @@
 import app.opia.common.utils.Platform;
 import java.time.ZonedDateTime;
 import java.util.UUID;
+import kotlin.Boolean;
 
 CREATE TABLE IF NOT EXISTS installation (
   self INTEGER AS Boolean NOT NULL,

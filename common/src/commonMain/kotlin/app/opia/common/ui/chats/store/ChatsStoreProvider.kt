@@ -1,5 +1,7 @@
 package app.opia.common.ui.chats.store
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import app.opia.common.api.repository.LinkPerm
 import app.opia.common.db.Actor_link
 import app.opia.common.di.ServiceLocator
@@ -13,8 +15,6 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import com.squareup.sqldelight.runtime.coroutines.asFlow
-import com.squareup.sqldelight.runtime.coroutines.mapToList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,7 +61,7 @@ internal class ChatsStoreProvider(
                 actorRepo.listLinks()
 
                 // refresh when db refreshes - maybe listLinks should return a Flow
-                db.actorQueries.listLinksForActor(self.id).asFlow().mapToList().collect {
+                db.actorQueries.listLinksForActor(self.id).asFlow().mapToList(coroutineContext).collect {
                     val chats = it.map { link ->
                         // TODO get latest msg per chat
                         // actor should exist in db, only time this returns null is if unauthenticated

@@ -1,12 +1,12 @@
 package app.opia.common.db
 
+import app.cash.sqldelight.ColumnAdapter
+import app.cash.sqldelight.EnumColumnAdapter
+import app.cash.sqldelight.db.SqlDriver
 import app.opia.db.OpiaDatabase
-import com.squareup.sqldelight.ColumnAdapter
-import com.squareup.sqldelight.EnumColumnAdapter
-import com.squareup.sqldelight.db.SqlDriver
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.UUID
 
 expect class DriverFactory {
     fun createDriver(): SqlDriver
@@ -37,9 +37,9 @@ fun createDatabase(driverFactory: DriverFactory): OpiaDatabase {
             dateAdapter
         ),
         Installation.Adapter(uuidAdapter, EnumColumnAdapter()),
-        Installation_ownership.Adapter(
-            uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter
-        ),
+//        Installation_ownership.Adapter(
+//            uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter
+//        ),
         Key_pair.Adapter(
             uuidAdapter,
             uuidAdapter,
@@ -55,11 +55,8 @@ fun createDatabase(driverFactory: DriverFactory): OpiaDatabase {
             dateAdapter,
             dateAdapter
         ),
-        Msg.Adapter(
-            uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter
-        ),
         Msg_payload.Adapter(
-            uuidAdapter
+            uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter
         ),
         Msg_rcpt.Adapter(
             uuidAdapter, uuidAdapter, uuidAdapter, dateAdapter, dateAdapter, dateAdapter
@@ -101,14 +98,14 @@ val ubyteArrayAdapter = object : ColumnAdapter<UByteArray, ByteArray> {
 
 val dateAdapter = object : ColumnAdapter<ZonedDateTime, String> {
     override fun decode(databaseValue: String): ZonedDateTime {
-        println("[?] dateAdapter > parsing databaseValue: $databaseValue")
+        //println("[?] dateAdapter > parsing databaseValue: $databaseValue")
         return ZonedDateTime.parse(databaseValue)
     }
 
     override fun encode(value: ZonedDateTime): String {
-        println("[?] dateAdapter > parsing date: $value")
+        //println("[?] dateAdapter > parsing date: $value")
         val str = value.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-        println("[?] dateAdapter > formatted: $str")
+        //println("[?] dateAdapter > formatted: $str")
         return str
     }
 }

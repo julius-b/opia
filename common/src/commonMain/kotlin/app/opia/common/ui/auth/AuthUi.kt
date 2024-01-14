@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.opia.common.di.ServiceLocator
 import app.opia.common.ui.auth.OpiaAuth.Event
 import app.opia.common.ui.auth.store.IdentityProvider
 import app.opia.common.ui.component.OpiaErrorSnackbarHost
@@ -53,6 +54,7 @@ import app.opia.common.ui.component.opiaBlue
 import app.opia.common.ui.component.opiaGray
 import com.arkivanov.decompose.extensions.compose.jetbrains.subscribeAsState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @ExperimentalComposeUiApi
 @Composable
@@ -73,6 +75,9 @@ fun AuthContent(component: OpiaAuth) {
             component.events.collect {
                 when (it) {
                     is Event.Authenticated -> {
+                        withContext(ServiceLocator.dispatchers.io) {
+                            ServiceLocator.login(it.authCtx)
+                        }
                         component.onAuthenticated(it.authCtx)
                     }
 

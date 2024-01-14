@@ -12,6 +12,7 @@ import app.opia.common.DefaultNotificationRepo
 import app.opia.common.db.DriverFactory
 import app.opia.common.db.createDatabase
 import app.opia.common.di.ServiceLocator
+import app.opia.common.sync.Notifier
 import app.opia.common.ui.OpiaRoot
 import app.opia.common.ui.OpiaRootComponent
 import app.opia.common.ui.OpiaRootContent
@@ -21,6 +22,7 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.jetbrains.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalDecomposeApi::class)
 fun main(args: Array<String>) {
@@ -32,11 +34,12 @@ fun main(args: Array<String>) {
         return
     }
 
-    ServiceLocator.init(
-        DefaultDispatchers,
-        createDatabase(DriverFactory()),
-        DefaultNotificationRepo
-    )
+    runBlocking {
+        ServiceLocator.init(DefaultDispatchers,
+            createDatabase(DriverFactory()),
+            DefaultNotificationRepo,
+            object : Notifier {})
+    }
 
     val lifecycle = LifecycleRegistry()
     val root = opiaRoot(DefaultComponentContext(lifecycle = lifecycle))

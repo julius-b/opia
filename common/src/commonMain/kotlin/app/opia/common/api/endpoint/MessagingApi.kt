@@ -2,7 +2,6 @@ package app.opia.common.api.endpoint
 
 import app.opia.common.api.PlainApiSuccess
 import app.opia.common.api.model.*
-import app.opia.common.db.Installation_ownership
 import app.opia.common.db.Msg_rcpt
 import retrofit2.http.*
 import java.util.*
@@ -22,7 +21,7 @@ interface MessagingApi {
     suspend fun createHandshake(@Body params: CreateHandshakeParams): PlainApiSuccess<ApiHandshake>
 
     @GET("message")
-    suspend fun list(): PlainApiSuccess<ListMsgsRes>
+    suspend fun list(): PlainApiSuccess<List<ApiRecvMsgPacket>>
 
     @POST("message")
     suspend fun create(@Body params: CreateMsgParams): PlainApiSuccess<CreateMsgRes>

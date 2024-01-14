@@ -25,7 +25,7 @@ internal class SplashStoreProvider(
         ) {}
 
     private sealed interface Action {
-        object Start : Action
+        data object Start : Action
     }
 
     private inner class ExecutorImpl :
@@ -47,20 +47,19 @@ internal class SplashStoreProvider(
                 // - sending a Msg from UI LaunchedEffect _after_ collecting
                 // - publish update as state, therefore new received will receive the correct value as well
                 if (sess != null) {
-                    // TODO logout reg here?
-                    val self = withContext(dispatchers.io) {
-                        db.actorQueries.getById(sess.actor_id).executeAsOne()
-                    }
-                    onNext(
-                        Output.Main(
-                            AuthCtx(
-                                installationId = sess.installation_id,
-                                actorId = self.id,
-                                ioid = sess.ioid,
-                                secretUpdateId = sess.secret_update_id
-                            )
-                        )
+                    val authCtx = AuthCtx(
+                        installationId = sess.installation_id,
+                        actorId = sess.actor_id,
+                        ioid = sess.ioid,
+                        secretUpdateId = sess.secret_update_id,
+                        refreshToken = sess.refresh_token,
+                        accessToken = sess.access_token,
+                        sessCreatedAt = sess.created_at
                     )
+                    withContext(dispatchers.io) {
+                        ServiceLocator.login(authCtx)
+                    }
+                    onNext(Output.Main(authCtx))
                 } else {
                     // Auth expects an empty db
                     ServiceLocator.authRepo.logout()

@@ -3,6 +3,7 @@ import app.opia.common.api.repository.KeyLifetime;
 import app.opia.common.api.repository.KeyType;
 import java.time.ZonedDateTime;
 import java.util.UUID;
+import kotlin.Boolean;
 import kotlin.UByteArray;
 
 CREATE TABLE IF NOT EXISTS key_pair (

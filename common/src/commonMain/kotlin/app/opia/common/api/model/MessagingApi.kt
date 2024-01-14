@@ -1,7 +1,6 @@
 package app.opia.common.api.model
 
 import app.opia.common.db.Installation_ownership
-import app.opia.common.db.Msg
 import app.opia.common.db.Msg_rcpt
 import java.time.ZonedDateTime
 import java.util.*
@@ -34,17 +33,22 @@ data class ApiHandshake(
     val deleted_at: ZonedDateTime?
 )
 
-data class ListMsgsRes(
-    val msgs: List<Msg>, val packets: List<ApiMsgPacket>
+data class ApiRecvMsgPacket(
+    val id: UUID, // msg_id
+    val from_id: UUID,
+    val rcpt_id: UUID,
+    val from_ioid: UUID,
+    val rcpt_ioid: UUID,
+    val dup: Long,
+    val hs_id: UUID?,
+    val seqno: Long,
+    val timestamp: ZonedDateTime,
+    val payload_enc: String // Base64 encoded UByteArray
 )
 
-data class CreateMsgParams(
-    val id: UUID, val rcpt_id: UUID, val packets: List<ApiMsgPacket>
-)
+typealias CreateMsgParams = List<ApiMsgPacket>
 
-data class CreateMsgRes(
-    val msg: Msg, val rcpts: List<Msg_rcpt>
-)
+typealias CreateMsgRes = List<Msg_rcpt>
 
 data class ApiMsgPacket(
     val msg_id: UUID,
@@ -54,6 +58,7 @@ data class ApiMsgPacket(
     val dup: Long,
     val hs_id: UUID?,
     val seqno: Long,
+    val timestamp: ZonedDateTime,
     val payload_enc: String // Base64 encoded UByteArray
 )
 

@@ -14,7 +14,7 @@ internal interface AuthStore : Store<Intent, State, Label> {
     sealed class Intent {
         data class SetUnique(val unique: String) : Intent()
         data class SetSecret(val secret: String) : Intent()
-        object Login : Intent()
+        data object Login : Intent()
     }
 
     data class State(
@@ -27,7 +27,7 @@ internal interface AuthStore : Store<Intent, State, Label> {
 
     sealed class Label {
         data class Authenticated(val authCtx: AuthCtx) : Label()
-        object NetworkError : Label()
-        object UnknownError : Label()
+        data object NetworkError : Label()
+        data object UnknownError : Label()
     }
 }

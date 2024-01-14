@@ -2,9 +2,12 @@
 
 package app.opia.common.api
 
-import app.opia.common.api.endpoint.*
+import app.opia.common.api.endpoint.ActorApi
+import app.opia.common.api.endpoint.AuthInterceptor
+import app.opia.common.api.endpoint.InstallationApi
+import app.opia.common.api.endpoint.KeyApi
+import app.opia.common.api.endpoint.MessagingApi
 import app.opia.common.api.model.AccessToken
-import app.opia.common.di.ServiceLocator
 import com.squareup.moshi.FromJson
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
@@ -18,7 +21,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.Base64
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
@@ -28,13 +32,13 @@ object RetrofitClient {
     )
 
     enum class Mode(val config: RunConfig) {
-        LocalDebug(RunConfig(host = "http://localhost:8080/api/v1/")),
-        NetworkDebug(RunConfig(host = "http://192.168.1.25:8080/api/v1/")),
-        StagingDebug(RunConfig(host = "https://staging.opia.app/api/v1/")),
-        Prod(RunConfig(host = "https://opia.app/api/v1/"));
+        LocalDebug(RunConfig(host = "http://localhost:8080/")),
+        NetworkDebug(RunConfig(host = "http://192.168.1.25:8080/")),
+        StagingDebug(RunConfig(host = "https://staging.opia.app/")),
+        Prod(RunConfig(host = "https://opia.app/"));
     }
 
-    private val mode: Mode = Mode.StagingDebug
+    val mode: Mode = Mode.StagingDebug
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)
@@ -56,7 +60,7 @@ object RetrofitClient {
     val accessTokenAdapter: JsonAdapter<AccessToken> = moshi.adapter(AccessToken::class.java)
 
     fun newRetrofitClient(okHttpClient: OkHttpClient): Retrofit =
-        Retrofit.Builder().client(okHttpClient).baseUrl(mode.config.host)
+        Retrofit.Builder().client(okHttpClient).baseUrl(mode.config.host + "api/v1/")
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .addCallAdapterFactory(NetworkResponseAdapterFactory()).build()
 

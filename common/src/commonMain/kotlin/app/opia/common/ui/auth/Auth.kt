@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.parcelable.Parcelable
 import com.arkivanov.essenty.parcelable.Parcelize
 import kotlinx.coroutines.flow.Flow
+import java.time.ZonedDateTime
 import java.util.UUID
 
 interface OpiaAuth {
@@ -36,19 +37,25 @@ interface OpiaAuth {
 
     sealed class Event {
         data class Authenticated(val authCtx: AuthCtx) : Event()
-        object NetworkError : Event()
-        object UnknownError : Event()
+        data object NetworkError : Event()
+        data object UnknownError : Event()
     }
 
     sealed class Output {
         data class Authenticated(val authCtx: AuthCtx) : Output()
         data class ContinueWithProvider(val provider: IdentityProvider) : Output()
-        object Register : Output()
+        data object Register : Output()
     }
 }
 
 // info that remains constant per refreshToken
 @Parcelize
 data class AuthCtx(
-    val installationId: UUID, val actorId: UUID, val ioid: UUID, val secretUpdateId: UUID
+    val installationId: UUID,
+    val actorId: UUID,
+    val ioid: UUID,
+    val secretUpdateId: UUID,
+    val refreshToken: String,
+    val accessToken: String,
+    val sessCreatedAt: ZonedDateTime
 ) : Parcelable
